@@ -27,7 +27,8 @@ export const telegramBotAuth = PieceAuth.SecretText({
 
 export const telegramBot = createPiece({
   displayName: 'Telegram Bot',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Build chatbots for Telegram',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/telegram_bot.png',
   categories: [PieceCategory.COMMUNICATION],
   auth: telegramBotAuth,
@@ -41,6 +42,6 @@ export const telegramBot = createPiece({
       auth: telegramBotAuth,
     }),
   ],
-  authors: ['abuaboud', 'Abdallah-Alwarawreh'],
+  authors: ["abdullahranginwala","tanoggy","alerdenisov","Abdallah-Alwarawreh","kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   triggers: [telegramNewMessage],
 });

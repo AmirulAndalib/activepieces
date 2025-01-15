@@ -3,6 +3,7 @@ import {
   OAuth2PropertyValue,
   PieceAuth,
   createPiece,
+  Property,
 } from '@activepieces/pieces-framework';
 import { PieceCategory } from '@activepieces/shared';
 import crypto from 'node:crypto';
@@ -14,29 +15,53 @@ import { slackSendDirectMessageAction } from './lib/actions/send-direct-message-
 import { slackSendMessageAction } from './lib/actions/send-message-action';
 import { newMessage } from './lib/triggers/new-message';
 import { newReactionAdded } from './lib/triggers/new-reaction-added';
+import { uploadFile } from './lib/actions/upload-file';
+import { searchMessages } from './lib/actions/search-messages';
+import { updateMessage } from './lib/actions/update-message';
+import { findUserByEmailAction } from './lib/actions/find-user-by-email';
+import { updateProfileAction } from './lib/actions/update-profile';
+import { createChannelAction } from './lib/actions/create-channel';
+import { channelCreated } from './lib/triggers/new-channel';
+import { addRectionToMessageAction } from './lib/actions/add-reaction-to-message';
+import { getChannelHistory } from './lib/actions/get-channel-history';
+import { findUserByHandleAction } from './lib/actions/find-user-by-handle';
+import { setUserStatusAction } from './lib/actions/set-user-status';
+import { newMention } from './lib/triggers/new-mention';
+import { markdownToSlackFormat } from './lib/actions/markdown-to-slack-format';
 
 export const slackAuth = PieceAuth.OAuth2({
   description: '',
-  authUrl: 'https://slack.com/oauth/authorize',
-  tokenUrl: 'https://slack.com/api/oauth.access',
+  authUrl:
+    'https://slack.com/oauth/v2/authorize?user_scope=search:read,users.profile:write,reactions:read',
+  tokenUrl: 'https://slack.com/api/oauth.v2.access',
   required: true,
   scope: [
     'channels:read',
-    'channels:write',
+    'channels:manage',
     'channels:history',
-    'chat:write:bot',
+    'chat:write',
     'groups:read',
+    'groups:write',
+    'groups:history',
     'reactions:read',
     'mpim:read',
+    'mpim:write',
+    'mpim:history',
+    'im:write',
+    'im:read',
+    'im:history',
     'users:read',
-    'files:write:user',
+    'files:write',
     'files:read',
+    'users:read.email',
+    'reactions:write',
   ],
 });
 
 export const slack = createPiece({
   displayName: 'Slack',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Channel-based messaging platform',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/slack.png',
   categories: [PieceCategory.COMMUNICATION],
   auth: slackAuth,
@@ -67,26 +92,65 @@ export const slack = createPiece({
       return signature === computedSignature;
     },
   },
+  authors: [
+    'rita-gorokhod',
+    'AdamSelene',
+    'Abdallah-Alwarawreh',
+    'kishanprmr',
+    'MoShizzle',
+    'AbdulTheActivePiecer',
+    'khaledmashaly',
+    'abuaboud',
+  ],
   actions: [
+    addRectionToMessageAction,
     slackSendDirectMessageAction,
     slackSendMessageAction,
     requestApprovalDirectMessageAction,
     requestSendApprovalMessageAction,
     requestActionDirectMessageAction,
     requestActionMessageAction,
+    uploadFile,
+    searchMessages,
+    findUserByEmailAction,
+    findUserByHandleAction,
+    updateMessage,
+    createChannelAction,
+    updateProfileAction,
+    getChannelHistory,
+    setUserStatusAction,
+    markdownToSlackFormat,
     createCustomApiCallAction({
       baseUrl: () => {
         return 'https://slack.com/api';
       },
       auth: slackAuth,
-      authMapping: (auth) => {
-        return {
-          Authorization: `Bearer ${(auth as OAuth2PropertyValue).access_token}`,
-        };
+      authMapping: async (auth, propsValue) => {
+        if (propsValue.useUserToken) {
+          return {
+            Authorization: `Bearer ${
+              (auth as OAuth2PropertyValue).data['authed_user']?.access_token
+            }`,
+          };
+        } else {
+          return {
+            Authorization: `Bearer ${
+              (auth as OAuth2PropertyValue).access_token
+            }`,
+          };
+        }
+      },
+      extraProps: {
+        useUserToken: Property.Checkbox({
+          displayName: 'Use user token',
+          description: 'Use user token instead of bot token',
+          required: true,
+          defaultValue: false,
+        }),
       },
     }),
   ],
-  triggers: [newMessage, newReactionAdded],
+  triggers: [newMessage, newMention, newReactionAdded, channelCreated],
 });
 
 type PayloadBody = {

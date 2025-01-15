@@ -16,7 +16,9 @@ export const posthogAuth = PieceAuth.SecretText({
 
 export const posthog = createPiece({
   displayName: 'PostHog',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Open-source product analytics',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/posthog.png',
   categories: [PieceCategory.BUSINESS_INTELLIGENCE],
   auth: posthogAuth,
@@ -26,11 +28,11 @@ export const posthog = createPiece({
     createCustomApiCallAction({
       baseUrl: () => 'https://app.posthog.com',
       auth: posthogAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${auth}`,
       }),
     }),
   ],
-  authors: ['kanarelo'],
+  authors: ["kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   triggers: [],
 });

@@ -34,11 +34,12 @@ export const baserowAuth = PieceAuth.CustomAuth({
 
 export const baserow = createPiece({
   displayName: 'Baserow',
+  description: 'Open-source online database tool, alternative to Airtable',
   auth: baserowAuth,
-  minimumSupportedRelease: '0.9.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/baserow.png',
   categories: [PieceCategory.PRODUCTIVITY],
-  authors: ['kishanprmr'],
+  authors: ["kishanprmr","MoShizzle","abuaboud"],
   actions: [
     createRowAction,
     deleteRowAction,
@@ -50,7 +51,7 @@ export const baserow = createPiece({
         return (auth as { apiUrl: string }).apiUrl;
       },
       auth: baserowAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Token ${(auth as { token: string }).token}`,
       }),
     }),

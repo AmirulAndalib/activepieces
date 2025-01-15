@@ -1,4 +1,5 @@
 import { Property, createAction } from '@activepieces/pieces-framework';
+import mime from 'mime-types';
 
 export const filesOutput = {
   Text: 'text',
@@ -9,6 +10,14 @@ export const readFileAction = createAction({
   name: 'read_file',
   displayName: 'Read File',
   description: 'Read a file from the file system',
+  errorHandlingOptions: {
+    continueOnFailure: {
+      hide: true,
+    },
+    retryOnFailure: {
+      hide: true,
+    },
+  },
   props: {
     file: Property.File({
       displayName: 'File',
@@ -30,13 +39,16 @@ export const readFileAction = createAction({
     const file = context.propsValue.file;
     const readOptions = context.propsValue.readOptions;
     switch (readOptions) {
-      case filesOutput.Base64:
+      case filesOutput.Base64: {
+        const mimeType = file.extension ? mime.lookup(file.extension) || 'application/octet-stream' : 'application/octet-stream';
         return {
-          Base64: file.data.toString('base64'),
+          base64WithMimeType: `data:${mimeType};base64,${file.data.toString('base64')}`,
+          base64: file.data.toString('base64'),
         };
+      }
       case filesOutput.Text:
         return {
-          Text: file.data.toString('utf-8'),
+          text: file.data.toString('utf-8'),
         };
       default:
         throw new Error(`Invalid output format: ${readOptions}`);

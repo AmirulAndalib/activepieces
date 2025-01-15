@@ -1,6 +1,6 @@
-import { TriggerType } from '../../flows/triggers/trigger'
-import { ActionType } from '../../flows/actions/action'
 import { isNil } from '../../common'
+import { ActionType } from '../../flows/actions/action'
+import { TriggerType } from '../../flows/triggers/trigger'
 
 export enum StepOutputStatus {
     FAILED = 'FAILED',
@@ -57,14 +57,17 @@ export class GenericStepOutput<T extends ActionType | TriggerType, OUTPUT> {
         })
     }
 
-    setDuration(duration: number): GenericStepOutput<T, OUTPUT> {
-        return new GenericStepOutput<T, OUTPUT>({
-            ...this,
-            duration,
-        })
-    }
-
-    static create<T extends ActionType | TriggerType, OUTPUT>({ input, type, status, output }: { input: unknown, type: T, status: StepOutputStatus, output?: OUTPUT }): GenericStepOutput<T, OUTPUT> {
+    static create<T extends ActionType | TriggerType, OUTPUT>({
+        input,
+        type,
+        status,
+        output,
+    }: {
+        input: unknown
+        type: T
+        status: StepOutputStatus
+        output?: OUTPUT
+    }): GenericStepOutput<T, OUTPUT> {
         return new GenericStepOutput<T, OUTPUT>({
             input,
             type,
@@ -72,30 +75,35 @@ export class GenericStepOutput<T extends ActionType | TriggerType, OUTPUT> {
             output,
         })
     }
-
 }
 
-export type StepOutput = GenericStepOutput<ActionType.LOOP_ON_ITEMS, LoopStepResult> | GenericStepOutput<ActionType.BRANCH, BranchStepResult> | GenericStepOutput<Exclude<ActionType, ActionType.LOOP_ON_ITEMS | ActionType.BRANCH> | TriggerType, unknown>
+export type StepOutput =
+  | GenericStepOutput<ActionType.LOOP_ON_ITEMS, LoopStepResult>
+  | GenericStepOutput<ActionType.ROUTER, unknown>
+  | GenericStepOutput<
+  | Exclude<ActionType, ActionType.LOOP_ON_ITEMS | ActionType.ROUTER>
+  | TriggerType,
+  unknown
+  >
 
-type BranchStepResult = {
-    condition: boolean
+
+
+type RouterStepResult = {
+    branches: boolean[]
 }
 
-export class BranchStepOutput extends GenericStepOutput<ActionType.BRANCH, BranchStepResult> {
-    constructor(step: BaseStepOutputParams<ActionType.BRANCH, BranchStepResult>) {
-        super(step)
-    }
-
-    static init({ input }: { input: unknown }): BranchStepOutput {
-        return new BranchStepOutput({
-            type: ActionType.BRANCH,
+export class RouterStepOutput extends GenericStepOutput<
+ActionType.ROUTER,
+RouterStepResult
+> {
+    static init({ input }: { input: unknown }): RouterStepOutput {
+        return new RouterStepOutput({
+            type: ActionType.ROUTER,
             input,
             status: StepOutputStatus.SUCCEEDED,
         })
     }
-
 }
-
 
 export type LoopStepResult = {
     item: unknown
@@ -103,8 +111,13 @@ export type LoopStepResult = {
     iterations: Record<string, StepOutput>[]
 }
 
-export class LoopStepOutput extends GenericStepOutput<ActionType.LOOP_ON_ITEMS, LoopStepResult> {
-    constructor(step: BaseStepOutputParams<ActionType.LOOP_ON_ITEMS, LoopStepResult>) {
+export class LoopStepOutput extends GenericStepOutput<
+ActionType.LOOP_ON_ITEMS,
+LoopStepResult
+> {
+    constructor(
+        step: BaseStepOutputParams<ActionType.LOOP_ON_ITEMS, LoopStepResult>,
+    ) {
         super(step)
         this.output = step.output ?? {
             item: undefined,
@@ -124,8 +137,14 @@ export class LoopStepOutput extends GenericStepOutput<ActionType.LOOP_ON_ITEMS, 
     hasIteration(iteration: number): boolean {
         return !isNil(this.output?.iterations[iteration])
     }
-    
-    setItemAndIndex({ item, index }: { item: unknown, index: number }): LoopStepOutput {
+
+    setItemAndIndex({
+        item,
+        index,
+    }: {
+        item: unknown
+        index: number
+    }): LoopStepOutput {
         return new LoopStepOutput({
             ...this,
             output: {
@@ -146,5 +165,4 @@ export class LoopStepOutput extends GenericStepOutput<ActionType.LOOP_ON_ITEMS, 
             },
         })
     }
-
 }

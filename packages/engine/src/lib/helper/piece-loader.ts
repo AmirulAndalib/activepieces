@@ -1,4 +1,4 @@
-import { Action, Piece } from '@activepieces/pieces-framework'
+import { Action, Piece, Trigger } from '@activepieces/pieces-framework'
 import { ActivepiecesError, ErrorCode, ExecutePropsOptions, extractPieceFromModule, getPackageAliasForPiece, isNil } from '@activepieces/shared'
 
 
@@ -25,11 +25,33 @@ const loadPieceOrThrow = async (
             params: {
                 pieceName,
                 pieceVersion,
+                message: 'Piece not found in the engine',
             },
         })
     }
 
     return piece
+}
+
+const getPieceAndTriggerOrThrow = async (params: {
+    pieceName: string
+    pieceVersion: string
+    triggerName: string
+    piecesSource: string
+},
+): Promise<{ piece: Piece, pieceTrigger: Trigger }> => {
+    const { pieceName, pieceVersion, triggerName, piecesSource } = params
+    const piece = await loadPieceOrThrow({ pieceName, pieceVersion, piecesSource })
+    const trigger = piece.getTrigger(triggerName)
+
+    if (trigger === undefined) {
+        throw new Error(`trigger not found, pieceName=${pieceName}, triggerName=${triggerName}`)
+    }
+
+    return {
+        piece,
+        pieceTrigger: trigger,
+    }
 }
 
 const getPieceAndActionOrThrow = async (params: {
@@ -62,11 +84,11 @@ const getPieceAndActionOrThrow = async (params: {
 }
 
 const getPropOrThrow = async ({ params, piecesSource }: { params: ExecutePropsOptions, piecesSource: string }) => {
-    const { piece: piecePackage, stepName, propertyName } = params
+    const { piece: piecePackage, actionOrTriggerName, propertyName } = params
 
     const piece = await loadPieceOrThrow({ pieceName: piecePackage.pieceName, pieceVersion: piecePackage.pieceVersion, piecesSource })
 
-    const action = piece.getAction(stepName) ?? piece.getTrigger(stepName)
+    const action = piece.getAction(actionOrTriggerName) ?? piece.getTrigger(actionOrTriggerName)
 
     if (isNil(action)) {
         throw new ActivepiecesError({
@@ -74,7 +96,7 @@ const getPropOrThrow = async ({ params, piecesSource }: { params: ExecutePropsOp
             params: {
                 pieceName: piecePackage.pieceName,
                 pieceVersion: piecePackage.pieceVersion,
-                stepName,
+                stepName: actionOrTriggerName,
             },
         })
     }
@@ -87,7 +109,7 @@ const getPropOrThrow = async ({ params, piecesSource }: { params: ExecutePropsOp
             params: {
                 pieceName: piecePackage.pieceName,
                 pieceVersion: piecePackage.pieceVersion,
-                stepName,
+                stepName: actionOrTriggerName,
                 configName: propertyName,
             },
         })
@@ -114,6 +136,7 @@ const getPackageAlias = ({ pieceName, pieceVersion, piecesSource }: {
 
 export const pieceLoader = {
     loadPieceOrThrow,
+    getPieceAndTriggerOrThrow,
     getPieceAndActionOrThrow,
     getPropOrThrow,
 }

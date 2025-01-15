@@ -6,7 +6,13 @@ import {
   ExecutionType,
   PauseType,
 } from '@activepieces/shared';
-import { profilePicture, slackChannel, text, username } from '../common/props';
+import {
+  profilePicture,
+  singleSelectChannelInfo,
+  slackChannel,
+  text,
+  username,
+} from '../common/props';
 
 export const requestSendApprovalMessageAction = createAction({
   auth: slackAuth,
@@ -15,7 +21,8 @@ export const requestSendApprovalMessageAction = createAction({
   description:
     'Send approval message to a channel and then wait until the message is approved or disapproved',
   props: {
-    channel: slackChannel,
+    info: singleSelectChannelInfo,
+    channel: slackChannel(true),
     text,
     username,
     profilePicture,
@@ -25,7 +32,7 @@ export const requestSendApprovalMessageAction = createAction({
       context.run.pause({
         pauseMetadata: {
           type: PauseType.WEBHOOK,
-          actions: ['approve', 'disapprove'],
+          response: {},
         },
       });
       const token = context.auth.access_token;
@@ -34,10 +41,14 @@ export const requestSendApprovalMessageAction = createAction({
       assertNotNullOrUndefined(token, 'token');
       assertNotNullOrUndefined(text, 'text');
       assertNotNullOrUndefined(channel, 'channel');
-      const approvalLink = `${context.serverUrl}v1/flow-runs/${context.run.id}/resume?action=approve`;
-      const disapprovalLink = `${context.serverUrl}v1/flow-runs/${context.run.id}/resume?action=disapprove`;
+      const approvalLink = context.generateResumeUrl({
+        queryParams: { action: 'approve' },
+      });
+      const disapprovalLink = context.generateResumeUrl({
+        queryParams: { action: 'disapprove' },
+      });
 
-      return await slackSendMessage({
+      await slackSendMessage({
         token,
         text: `${context.propsValue.text}\n\nApprove: ${approvalLink}\n\nDisapprove: ${disapprovalLink}`,
         username,
@@ -77,11 +88,13 @@ export const requestSendApprovalMessageAction = createAction({
         ],
         conversationId: channel,
       });
-    } else {
-      const payload = context.resumePayload as { action: string };
 
       return {
-        approved: payload.action === 'approve',
+        approved: false, // default approval is false
+      };
+    } else {
+      return {
+        approved: context.resumePayload.queryParams['action'] === 'approve',
       };
     }
   },

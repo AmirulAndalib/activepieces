@@ -19,9 +19,11 @@ export const figmaAuth = PieceAuth.OAuth2({
 
 export const figma = createPiece({
   displayName: 'Figma',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Collaborative interface design tool',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/figma.png',
   categories: [],
+  authors: ["kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   auth: figmaAuth,
   actions: [
     getFileAction,
@@ -30,7 +32,7 @@ export const figma = createPiece({
     createCustomApiCallAction({
       baseUrl: () => 'https://api.figma.com',
       auth: figmaAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${(auth as OAuth2PropertyValue).access_token}`,
       }),
     }),

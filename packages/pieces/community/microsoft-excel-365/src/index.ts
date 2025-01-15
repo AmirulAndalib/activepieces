@@ -34,11 +34,13 @@ export const excelAuth = PieceAuth.OAuth2({
 
 export const microsoftExcel = createPiece({
   displayName: 'Microsoft Excel 365',
+  description: 'Spreadsheet software by Microsoft',
+
   auth: excelAuth,
-  minimumSupportedRelease: '0.8.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/microsoft-excel-365.png',
   categories: [PieceCategory.PRODUCTIVITY],
-  authors: ['BastienMe'],
+  authors: ["BastienMe","kishanprmr","MoShizzle","abuaboud"],
   actions: [
     appendRowAction,
     getWorksheetsAction,
@@ -59,7 +61,7 @@ export const microsoftExcel = createPiece({
     createCustomApiCallAction({
       baseUrl: () => excelCommon.baseUrl,
       auth: excelAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${(auth as OAuth2PropertyValue).access_token}`,
       }),
     }),

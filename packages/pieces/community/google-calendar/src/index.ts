@@ -9,9 +9,10 @@ import { createEvent } from './lib/actions/create-event';
 import { createQuickCalendarEvent } from './lib/actions/create-quick-event';
 import { deleteEventAction } from './lib/actions/delete-event.action';
 import { getEvents } from './lib/actions/get-events';
-import { updateEventAction } from './lib/actions/update-event.ation';
+import { updateEventAction } from './lib/actions/update-event.action';
 import { googleCalendarCommon } from './lib/common';
 import { calendarEventChanged } from './lib/triggers/calendar-event';
+import { addAttendeesToEventAction } from './lib/actions/add-attendees.action';
 
 export const googleCalendarAuth = PieceAuth.OAuth2({
   description: '',
@@ -26,13 +27,26 @@ export const googleCalendarAuth = PieceAuth.OAuth2({
 });
 
 export const googleCalendar = createPiece({
-  minimumSupportedRelease: '0.5.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/google-calendar.png',
   categories: [PieceCategory.PRODUCTIVITY],
   displayName: 'Google Calendar',
-  authors: ['osamahaikal', 'bibhuty-did-this', 'MoShizzle', 'PFernandez98'],
+  description: 'Get organized and stay on schedule',
+
+  authors: [
+    'OsamaHaikal',
+    'bibhuty-did-this',
+    'Vitalini',
+    'pfernandez98',
+    'kishanprmr',
+    'MoShizzle',
+    'khaledmashaly',
+    'abuaboud',
+    'ikus060',
+  ],
   auth: googleCalendarAuth,
   actions: [
+    addAttendeesToEventAction,
     createQuickCalendarEvent,
     createEvent,
     getEvents,
@@ -43,7 +57,7 @@ export const googleCalendar = createPiece({
       baseUrl() {
         return googleCalendarCommon.baseUrl;
       },
-      authMapping: (auth) => {
+      authMapping: async (auth) => {
         return {
           Authorization: `Bearer ${(auth as OAuth2PropertyValue).access_token}`,
         };

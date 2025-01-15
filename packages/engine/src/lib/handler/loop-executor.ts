@@ -1,8 +1,7 @@
-import { LoopOnItemsAction, LoopStepOutput, isNil } from '@activepieces/shared'
+import { isNil, LoopOnItemsAction, LoopStepOutput, StepOutputStatus } from '@activepieces/shared'
 import { BaseExecutor } from './base-executor'
-import { ExecutionVerdict, FlowExecutorContext } from './context/flow-execution-context'
+import { ExecutionVerdict } from './context/flow-execution-context'
 import { flowExecutor } from './flow-executor'
-import { EngineConstants } from './context/engine-constants'
 
 type LoopOnActionResolvedSettings = {
     items: readonly unknown[]
@@ -13,12 +12,8 @@ export const loopExecutor: BaseExecutor<LoopOnItemsAction> = {
         action,
         executionState,
         constants,
-    }: {
-        action: LoopOnItemsAction
-        executionState: FlowExecutorContext
-        constants: EngineConstants
     }) {
-        const { resolvedInput, censoredInput } = await constants.variableService.resolve<LoopOnActionResolvedSettings>({
+        const { resolvedInput, censoredInput } = await constants.propsResolver.resolve<LoopOnActionResolvedSettings>({
             unresolvedInput: {
                 items: action.settings.items,
             },
@@ -29,6 +24,16 @@ export const loopExecutor: BaseExecutor<LoopOnItemsAction> = {
             input: censoredInput,
         })
         let newExecutionContext = executionState.upsertStep(action.name, stepOutput)
+
+        if (!Array.isArray(resolvedInput.items)) {
+            const failedStepOutput = stepOutput
+                .setStatus(StepOutputStatus.FAILED)
+                .setErrorMessage(JSON.stringify({
+                    message: 'The items you have selected must be a list.',
+                }))
+            return newExecutionContext.upsertStep(action.name, failedStepOutput).setVerdict(ExecutionVerdict.FAILED)
+        }
+
         const firstLoopAction = action.firstLoopAction
 
 
@@ -50,11 +55,12 @@ export const loopExecutor: BaseExecutor<LoopOnItemsAction> = {
                 })
             }
 
+            newExecutionContext = newExecutionContext.setCurrentPath(newExecutionContext.currentPath.removeLast())
+
             if (newExecutionContext.verdict !== ExecutionVerdict.RUNNING) {
                 return newExecutionContext
             }
 
-            newExecutionContext = newExecutionContext.setCurrentPath(newExecutionContext.currentPath.removeLast())
             if (constants.testSingleStepMode) {
                 break
             }

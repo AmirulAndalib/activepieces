@@ -1,5 +1,5 @@
 ---
-title: 'Github Codespaces'
+title: 'GitHub Codespaces'
 description: ''
 ---
 
@@ -13,15 +13,16 @@ GitHub Codespaces is a cloud development platform that enables developers to wri
 
 ![Create Codespace](/resources/screenshots/development-setup_codespaces.png)
 
-3. Open the terminal and run `npm run backend & npm run frontend`
+<Note>
+  By default, the development setup only builds specific pieces.Open the file
+  `packages/server/api/.env` and add comma-separated list of pieces to make
+  available.
 
-<Warning>
-**Troubleshoot 1:** In some cases, the above command may not start the frontend server correctly. If this happens, follow these steps:
-  1. Cancel the running command by pressing Ctrl+C.
-  2. In separate terminal windows, run the following commands:
-     - To start the backend server: `npm run serve:backend`
-     - To start the frontend server: `npm run serve:frontend`
-</Warning>
+For more details, check out the [Piece Development](/developers/development-setup/getting-started) section.
+
+</Note>
+
+3. Open the terminal and run `npm start`
 
 4. Access the frontend URL by opening port 4200 and signing in with these details:
 

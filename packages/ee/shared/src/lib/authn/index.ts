@@ -1,2 +1,2 @@
 export * from './enterprise-local-authn'
-export * from './federated-authn'
+export * from './access-control-list'

@@ -1,11 +1,11 @@
-import Airtable from 'airtable';
-import { Property, DynamicPropsValue } from '@activepieces/pieces-framework';
 import {
-  HttpMethod,
   AuthenticationType,
-  httpClient,
+  HttpMethod,
   HttpRequest,
+  httpClient,
 } from '@activepieces/pieces-common';
+import { DynamicPropsValue, Property } from '@activepieces/pieces-framework';
+import Airtable from 'airtable';
 import {
   AirtableBase,
   AirtableEnterpriseFields,
@@ -15,7 +15,7 @@ import {
   AirtableTable,
   AirtableView,
 } from './models';
-import { isNil } from 'lodash';
+import { isNil } from '@activepieces/shared';
 
 export const airtableCommon = {
   base: Property.Dropdown({
@@ -185,15 +185,12 @@ export const airtableCommon = {
       if (!base) return {};
       if (!tableId) return {};
 
-      const fields: DynamicPropsValue = {};
-
       const airtable: AirtableTable = await airtableCommon.fetchTable({
         token: auth as unknown as string,
         baseId: base as unknown as string,
         tableId: tableId as unknown as string,
       });
-
-      airtable.fields.forEach((field: AirtableField) => {
+      const fields = airtable.fields.reduce((acc, field) => {
         if (!AirtableEnterpriseFields.includes(field.type)) {
           const params = {
             displayName: field.name,
@@ -204,12 +201,12 @@ export const airtableCommon = {
               : field.description,
             required: false,
           };
+
           if (isNil(AirtableFieldMapping[field.type])) {
-            fields[field.id] = Property.ShortText({
+            acc[field.id] = Property.ShortText({
               ...params,
             });
-          }
-          if (
+          } else if (
             field.type === 'singleSelect' ||
             field.type === 'multipleSelects'
           ) {
@@ -220,17 +217,19 @@ export const airtableCommon = {
               })
             );
 
-            fields[field.id] = AirtableFieldMapping[field.type]({
+            acc[field.id] = AirtableFieldMapping[field.type]({
               ...params,
               options: {
                 options: options ?? [],
               },
             });
           } else {
-            fields[field.id] = AirtableFieldMapping[field.type](params);
+            acc[field.id] = AirtableFieldMapping[field.type](params);
           }
         }
-      });
+
+        return acc;
+      }, {} as DynamicPropsValue);
 
       return fields;
     },
@@ -298,12 +297,19 @@ export const airtableCommon = {
     airtable.fields.forEach((field) => {
       if (!AirtableEnterpriseFields.includes(field.type)) {
         const key = field.id;
-        if (field.type === 'multipleAttachments') {
+
+        if (field.type === 'multipleAttachments' && fields[key]) {
           newFields[key] = [
             {
               url: fields[key] as string,
             },
           ];
+        } else if (
+          ['multipleRecordLinks', 'multipleSelects'].includes(field.type)
+        ) {
+          if (Array.isArray(fields[key]) && (fields[key] as any[]).length > 0) {
+            newFields[key] = fields[key];
+          }
         } else {
           newFields[key] = fields[key];
         }
@@ -317,15 +323,19 @@ export const airtableCommon = {
       apiKey: params.personalToken,
     });
     const airtable = new Airtable();
-    const currentTablleSnapshot = (
-      await airtable.base(params.baseId).table(params.tableId).select().all()
+    const currentTableSnapshot = (
+      await airtable
+        .base(params.baseId)
+        .table(params.tableId)
+        .select(params.limitToView ? { view: params.limitToView } : {})
+        .all()
     )
       .map((r) => r._rawJson)
       .sort(
         (x, y) =>
           new Date(x.createdTime).getTime() - new Date(y.createdTime).getTime()
       );
-    return currentTablleSnapshot;
+    return currentTableSnapshot;
   },
 
   async fetchTableList({
@@ -373,19 +383,19 @@ export const airtableCommon = {
     baseId: string;
     tableId: string;
   }) {
-    const response = await httpClient.sendRequest<{ views: AirtableView[] }>({
+    const response = await httpClient.sendRequest<{ tables: AirtableTable[] }>({
       method: HttpMethod.GET,
-      url: `https://api.airtable.com/v0/${baseId}/${tableId}/views`,
+      url: `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
       authentication: {
         type: AuthenticationType.BEARER_TOKEN,
         token,
       },
     });
 
-    if (response.status === 200) {
-      return response.body.views;
+    const table = response.body.tables.find((table) => table.id === tableId);
+    if (table) {
+      return table.views;
     }
-
     return [];
   },
 

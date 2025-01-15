@@ -4,11 +4,13 @@ import { convertJsonToXml } from './lib/actions/convert-json-to-xml';
 
 export const xml = createPiece({
   displayName: 'XML',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Extensible Markup Language for storing and transporting data',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/xml.png',
   categories: [PieceCategory.CORE],
   auth: PieceAuth.None(),
-  authors: ['Willianwg'],
+  authors: ["Willianwg","kishanprmr","AbdulTheActivePiecer","khaledmashaly","abuaboud"],
   actions: [convertJsonToXml],
   triggers: [],
 });

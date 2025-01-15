@@ -1,4 +1,4 @@
-import { createTrigger } from '@activepieces/pieces-framework';
+import { OAuth2PropertyValue, createTrigger } from '@activepieces/pieces-framework';
 import { TriggerStrategy } from '@activepieces/pieces-framework';
 import {
   DedupeStrategy,
@@ -8,7 +8,7 @@ import {
 import { leadConnectorAuth } from '../..';
 import { getContacts } from '../common';
 
-const polling: Polling<string, unknown> = {
+const polling: Polling<OAuth2PropertyValue, unknown> = {
   strategy: DedupeStrategy.TIMEBASED,
   items: async ({ auth }) => {
     const currentValues =
@@ -54,6 +54,7 @@ export const contactUpdated = createTrigger({
       auth: context.auth,
       store: context.store,
       propsValue: context.propsValue,
+      files: context.files,
     });
   },
   test: async (context) => {
@@ -61,6 +62,7 @@ export const contactUpdated = createTrigger({
       auth: context.auth,
       store: context.store,
       propsValue: context.propsValue,
+      files: context.files,
     });
   },
 });

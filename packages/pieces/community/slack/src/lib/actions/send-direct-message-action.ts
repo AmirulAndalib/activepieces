@@ -2,7 +2,15 @@ import { createAction } from '@activepieces/pieces-framework';
 import { slackSendMessage } from '../common/utils';
 import { slackAuth } from '../../';
 import { assertNotNullOrUndefined } from '@activepieces/shared';
-import { profilePicture, text, userId, username } from '../common/props';
+import {
+  profilePicture,
+  text,
+  userId,
+  username,
+  blocks,
+} from '../common/props';
+import { Block,KnownBlock } from '@slack/web-api';
+
 
 export const slackSendDirectMessageAction = createAction({
   auth: slackAuth,
@@ -14,14 +22,18 @@ export const slackSendDirectMessageAction = createAction({
     text,
     username,
     profilePicture,
+    blocks,
   },
   async run(context) {
     const token = context.auth.access_token;
-    const { text, userId } = context.propsValue;
+    const { text, userId, blocks } = context.propsValue;
 
     assertNotNullOrUndefined(token, 'token');
     assertNotNullOrUndefined(text, 'text');
     assertNotNullOrUndefined(userId, 'userId');
+
+    const blockList = blocks ?[{ type: 'section', text: { type: 'mrkdwn', text } }, ...(blocks as unknown as (KnownBlock | Block)[])] :undefined
+
 
     return slackSendMessage({
       token,
@@ -29,13 +41,8 @@ export const slackSendDirectMessageAction = createAction({
       username: context.propsValue.username,
       profilePicture: context.propsValue.profilePicture,
       conversationId: userId,
+      blocks:blockList,
     });
   },
 });
 
-type UserListResponse = {
-  members: {
-    id: string;
-    name: string;
-  }[];
-};

@@ -1,6 +1,6 @@
 
 import { OAuth2GrantType } from '@activepieces/shared';
-import { Static, Type } from '@sinclair/typebox';
+import { Type } from '@sinclair/typebox';
 import { ShortTextProperty } from '../input/text-property';
 import { SecretTextProperty } from './secret-text-property';
 import { BasePieceAuthSchema } from './common';
@@ -8,7 +8,6 @@ import { TPropertyValue } from '../input/common';
 import { PropertyType } from '../input/property-type';
 import { StaticDropdownProperty } from '../input/dropdown/static-dropdown';
 import { StaticPropsValue } from '..';
-import { ValidationInputType } from '../../validators/types';
 
 export enum OAuth2AuthorizationMethod {
   HEADER = 'HEADER',
@@ -22,7 +21,7 @@ const OAuthProp = Type.Union([
 ])
 
 type OAuthProp =
-  | ShortTextProperty<true>
+  | ShortTextProperty<boolean>
   | SecretTextProperty<boolean>
   | StaticDropdownProperty<any, true>;
 
@@ -44,10 +43,19 @@ const OAuth2ExtraProps = Type.Object({
   pkce: Type.Optional(Type.Boolean()),
   authorizationMethod: Type.Optional(Type.Enum(OAuth2AuthorizationMethod)),
   grantType: Type.Optional(Type.Enum(OAuth2GrantType)),
-  extra: Type.Optional(Type.Record(Type.String(), Type.Unknown()))
+  extra: Type.Optional(Type.Record(Type.String(), Type.String()))
 })
 
-type OAuth2ExtraProps = Static<typeof OAuth2ExtraProps>;
+type OAuth2ExtraProps = {
+  props?: OAuth2Props
+  authUrl: string
+  tokenUrl: string
+  scope: string[]
+  pkce?: boolean
+  authorizationMethod?: OAuth2AuthorizationMethod
+  grantType?: OAuth2GrantType
+  extra?: Record<string, string>
+}
 
 export const OAuth2PropertyValue = Type.Object({
   access_token: Type.String(),
@@ -74,7 +82,6 @@ export type OAuth2Property<
   TPropertyValue<
     OAuth2PropertyValue<T>,
     PropertyType.OAUTH2,
-    ValidationInputType.ANY,
     true
   >;
 

@@ -15,11 +15,12 @@ export const beamerAuth = PieceAuth.SecretText({
 });
 
 export const beamer = createPiece({
-  displayName: 'beamer',
+  displayName: 'Beamer',
+  description: 'Engage users with targeted announcements',
   logoUrl: 'https://cdn.activepieces.com/pieces/beamer.png',
   categories: [PieceCategory.PRODUCTIVITY],
   auth: beamerAuth,
-  authors: ['i-nithin'],
+  authors: ["i-nithin","kishanprmr","MoShizzle","abuaboud"],
   actions: [
     createBeamerPost,
     createNewFeatureRequest,
@@ -28,7 +29,7 @@ export const beamer = createPiece({
     createCustomApiCallAction({
       baseUrl: () => beamerCommon.baseUrl,
       auth: beamerAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         'Beamer-Api-Key': `Bearer ${auth}`,
       }),
     }),

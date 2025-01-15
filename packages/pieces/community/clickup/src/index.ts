@@ -33,7 +33,8 @@ export const clickupAuth = PieceAuth.OAuth2({
 
 export const clickup = createPiece({
   displayName: 'ClickUp',
-  minimumSupportedRelease: '0.5.0',
+  description: 'All-in-one productivity platform',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/clickup.png',
   categories: [PieceCategory.PRODUCTIVITY],
   auth: clickupAuth,
@@ -59,13 +60,13 @@ export const clickup = createPiece({
       baseUrl: () => {
         return 'https://api.clickup.com/api/v2/';
       },
-      authMapping: (auth) => {
+      authMapping: async (auth) => {
         return {
           Authorization: `Bearer ${(auth as OAuth2PropertyValue).access_token}`,
         };
       },
     }),
   ],
-  authors: ['abuaboud', 'ShayPunter', 'kanarelo'],
+  authors: ["kanarelo","kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   triggers,
 });

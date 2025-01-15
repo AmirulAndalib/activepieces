@@ -8,6 +8,8 @@ import { PieceCategory } from '@activepieces/shared';
 import { getContactFromID } from './lib/actions/get-contact-from-id';
 import { getTicketStatus } from './lib/actions/get-ticket-status';
 import { getTickets } from './lib/actions/get-tickets';
+import { getContacts } from './lib/actions/get-contacts';
+import { getAllTicketsByStatus } from './lib/actions/get-all-tickets-by-status';
 
 export const freshdeskAuth = PieceAuth.CustomAuth({
   props: {
@@ -28,18 +30,22 @@ export const freshdeskAuth = PieceAuth.CustomAuth({
 
 export const freshdesk = createPiece({
   displayName: 'Freshdesk',
+  description: 'Customer support software',
+
   logoUrl: 'https://cdn.activepieces.com/pieces/freshdesk.png',
   categories: [PieceCategory.CUSTOMER_SUPPORT],
-  authors: ['buttonsbond'],
+  authors: ["buttonsbond","kishanprmr","MoShizzle","AbdulTheActivePiecer","abuaboud"],
   auth: freshdeskAuth,
   actions: [
     getTickets,
     getContactFromID,
     getTicketStatus,
+    getContacts,
+    getAllTicketsByStatus,
     createCustomApiCallAction({
       baseUrl: (auth) => (auth as { base_url: string }).base_url,
       auth: freshdeskAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: (auth as { access_token: string }).access_token,
       }),
     }),

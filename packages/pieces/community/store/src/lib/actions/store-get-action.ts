@@ -3,11 +3,22 @@ import {
   Property,
   StoreScope,
 } from '@activepieces/pieces-framework';
+import { getScopeAndKey, PieceStoreScope } from './common';
+import { z } from 'zod';
+import { propsValidation } from '@activepieces/pieces-common';
 
 export const storageGetAction = createAction({
   name: 'get',
   displayName: 'Get',
   description: 'Get a value from storage',
+  errorHandlingOptions: {
+    continueOnFailure: {
+      hide: true,
+    },
+    retryOnFailure: {
+      hide: true,
+    },
+  },
   props: {
     key: Property.ShortText({
       displayName: 'Key',
@@ -25,21 +36,33 @@ export const storageGetAction = createAction({
         options: [
           {
             label: 'Project',
-            value: StoreScope.PROJECT,
+            value: PieceStoreScope.PROJECT,
           },
           {
             label: 'Flow',
-            value: StoreScope.FLOW,
+            value: PieceStoreScope.FLOW,
+          },
+          {
+            label: 'Run',
+            value: PieceStoreScope.RUN,
           },
         ],
       },
       defaultValue: StoreScope.PROJECT,
     }),
   },
-  async run({ store, propsValue }) {
+  async run(context) {
+    await propsValidation.validateZod(context.propsValue, {
+      key: z.string().max(128),
+    });
+
+    const { key, scope } = getScopeAndKey({
+      runId: context.run.id,
+      key: context.propsValue['key'],
+      scope: context.propsValue.store_scope,
+    });
     return (
-      (await store.get(propsValue['key'], propsValue.store_scope)) ??
-      propsValue['defaultValue']
+      (await context.store.get(key, scope)) ?? context.propsValue['defaultValue']
     );
   },
 });

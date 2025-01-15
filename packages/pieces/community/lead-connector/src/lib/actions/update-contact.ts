@@ -1,7 +1,7 @@
 import {
   createAction,
+  OAuth2PropertyValue,
   Property,
-  Validators,
 } from '@activepieces/pieces-framework';
 import {
   Country,
@@ -12,6 +12,8 @@ import {
   updateContact,
 } from '../common';
 import { leadConnectorAuth } from '../..';
+import { z } from 'zod';
+import { propsValidation } from '@activepieces/pieces-common';
 
 export const updateContactAction = createAction({
   auth: leadConnectorAuth,
@@ -35,12 +37,10 @@ export const updateContactAction = createAction({
     email: Property.ShortText({
       displayName: 'Email',
       required: false,
-      validators: [Validators.email],
     }),
     phone: Property.ShortText({
       displayName: 'Phone',
       required: false,
-      validators: [Validators.phoneNumber],
     }),
     companyName: Property.ShortText({
       displayName: 'Company Name',
@@ -49,7 +49,6 @@ export const updateContactAction = createAction({
     website: Property.ShortText({
       displayName: 'Website',
       required: false,
-      validators: [Validators.url],
     }),
     tags: Property.MultiSelectDropdown({
       displayName: 'Tags',
@@ -62,7 +61,7 @@ export const updateContactAction = createAction({
             options: [],
           };
 
-        const tags = await getTags(auth as string);
+        const tags = await getTags(auth as OAuth2PropertyValue);
         return {
           options: tags.map((tag) => {
             return {
@@ -122,7 +121,7 @@ export const updateContactAction = createAction({
             options: [],
           };
 
-        const timezones = await getTimezones(auth as string);
+        const timezones = await getTimezones(auth as OAuth2PropertyValue);
         return {
           options: timezones.map((timezone) => {
             return {
@@ -136,6 +135,12 @@ export const updateContactAction = createAction({
   },
 
   async run({ auth, propsValue }) {
+    await propsValidation.validateZod(propsValue, {
+      email: z.string().email().optional(),
+      phone: z.string().optional(),
+      website: z.string().url().optional(),
+    });
+
     const {
       id,
       firstName,
@@ -166,11 +171,11 @@ export const updateContactAction = createAction({
       country: country,
       city: city,
       state: state,
-      address: address,
+      address1: address,
       postalCode: postalCode,
       timezone: timezone,
     };
 
-    return await updateContact(auth, id, contact);
+    return await updateContact(auth.access_token, id, contact);
   },
 });

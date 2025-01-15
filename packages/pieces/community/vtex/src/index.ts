@@ -54,10 +54,11 @@ export const vtexAuth = PieceAuth.CustomAuth({
 
 export const vtex = createPiece({
   displayName: 'VTEX',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Unified commerce platform',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/vtex.png',
   categories: [PieceCategory.COMMERCE],
-  authors: ['Willianwg'],
+  authors: ["Willianwg","kishanprmr","MoShizzle","AbdulTheActivePiecer","khaledmashaly","abuaboud"],
   auth: vtexAuth,
   actions: [
     getProductById,
@@ -79,7 +80,7 @@ export const vtex = createPiece({
     createCustomApiCallAction({
       baseUrl: (auth) => `https://${(auth as { hostUrl: string }).hostUrl}`,
       auth: vtexAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         'X-VTEX-API-AppKey': (auth as { appKey: string }).appKey,
         'X-VTEX-API-AppToken': (auth as { appToken: string }).appToken,
       }),

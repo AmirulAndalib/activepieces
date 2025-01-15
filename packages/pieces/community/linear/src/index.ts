@@ -5,7 +5,10 @@ import { linearCreateIssue } from './lib/actions/issues/create-issue';
 import { linearUpdateIssue } from './lib/actions/issues/update-issue';
 import { linearCreateProject } from './lib/actions/projects/create-project';
 import { linearUpdateProject } from './lib/actions/projects/update-project';
+import { linearRawGraphqlQuery } from './lib/actions/raw-graphql-query';
 import { linearNewIssue } from './lib/triggers/new-issue';
+import { linearUpdatedIssue } from './lib/triggers/updated-issue';
+import { linearRemovedIssue } from './lib/triggers/removed-issue';
 
 const markdown = `
 To obtain your API key, follow these steps:
@@ -32,10 +35,12 @@ export const linearAuth = PieceAuth.SecretText({
 });
 export const linear = createPiece({
   displayName: 'Linear',
+  description: 'Issue tracking for modern software teams',
+
   auth: linearAuth,
-  minimumSupportedRelease: '0.7.1',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/linear.png',
-  authors: ['kishanprmr', 'lldiegon'],
+  authors: ['lldiegon', 'kishanprmr', 'abuaboud'],
   categories: [PieceCategory.PRODUCTIVITY],
   actions: [
     linearCreateIssue,
@@ -43,6 +48,7 @@ export const linear = createPiece({
     linearCreateProject,
     linearUpdateProject,
     linearCreateComment,
+    linearRawGraphqlQuery,
   ],
-  triggers: [linearNewIssue],
+  triggers: [linearNewIssue, linearUpdatedIssue, linearRemovedIssue],
 });

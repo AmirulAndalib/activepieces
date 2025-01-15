@@ -78,17 +78,19 @@ export const flowisePredict = createAction({
 
 export const flowise = createPiece({
   displayName: 'Flowise',
+  description: 'No-Code AI workflow builder',
+
   logoUrl: 'https://cdn.activepieces.com/pieces/flowise.png',
   auth: flowiseAuth,
-  minimumSupportedRelease: '0.9.0',
+  minimumSupportedRelease: '0.30.0',
   categories: [PieceCategory.ARTIFICIAL_INTELLIGENCE],
-  authors: [],
+  authors: ["aasimsani","kishanprmr","MoShizzle","abuaboud"],
   actions: [
     flowisePredict,
     createCustomApiCallAction({
       baseUrl: (auth) => (auth as { base_url: string }).base_url,
       auth: flowiseAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${
           (auth as { access_token: string }).access_token
         }`,

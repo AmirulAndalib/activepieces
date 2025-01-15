@@ -19,6 +19,10 @@ import { googleDriveSearchFolder } from './lib/action/search-folder-or-file.acti
 import { googleDriveUploadFile } from './lib/action/upload-file';
 import { newFile } from './lib/triggers/new-file';
 import { newFolder } from './lib/triggers/new-folder';
+import { setPublicAccess } from './lib/action/set-public-access';
+import { moveFileAction } from './lib/action/move-file';
+import { googleDriveDeleteFile } from './lib/action/delete-file';
+import { googleDriveTrashFile } from './lib/action/send-to-trash';
 
 export const googleDriveAuth = PieceAuth.OAuth2({
   description: '',
@@ -33,13 +37,19 @@ export const googleDrive = createPiece({
   logoUrl: 'https://cdn.activepieces.com/pieces/google-drive.png',
   categories: [PieceCategory.CONTENT_AND_FILES],
   displayName: 'Google Drive',
+  description: 'Cloud storage and file backup',
   authors: [
-    'kanarelo',
     'BastienMe',
+    'ArmanGiau3',
+    'Vitalini',
+    'pfernandez98',
+    'kanarelo',
+    'Salem-Alaa',
+    'kishanprmr',
     'MoShizzle',
-    'Armangiau',
-    'vitalini',
-    'PFernandez98',
+    'AbdulTheActivePiecer',
+    'khaledmashaly',
+    'abuaboud',
   ],
   triggers: [newFile, newFolder],
   actions: [
@@ -54,10 +64,14 @@ export const googleDrive = createPiece({
     saveFileAsPdf,
     addPermission,
     deletePermission,
+    setPublicAccess,
+    moveFileAction,
+    googleDriveDeleteFile,
+    googleDriveTrashFile,
     createCustomApiCallAction({
       baseUrl: () => 'https://www.googleapis.com/drive/v3',
       auth: googleDriveAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${(auth as OAuth2PropertyValue).access_token}`,
       }),
     }),

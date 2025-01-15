@@ -13,11 +13,13 @@ export const sendfoxAuth = PieceAuth.SecretText({
 
 export const sendfox = createPiece({
   displayName: 'SendFox',
+  description: 'Email marketing made simple',
+
   auth: sendfoxAuth,
-  minimumSupportedRelease: '0.7.1',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/sendfox.png',
   categories: [PieceCategory.MARKETING],
-  authors: ['Salem-Alaa'],
+  authors: ["Salem-Alaa","kishanprmr","MoShizzle","abuaboud"],
   actions: [
     createList,
     unsubscribe,
@@ -25,7 +27,7 @@ export const sendfox = createPiece({
     createCustomApiCallAction({
       baseUrl: () => 'https://api.sendfox.com',
       auth: sendfoxAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${auth}`,
       }),
     }),

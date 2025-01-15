@@ -18,13 +18,12 @@ export const stripeAuth = PieceAuth.SecretText({
 
 export const stripe = createPiece({
   displayName: 'Stripe',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Online payment processing for internet businesses',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/stripe.png',
-  authors: ['ashrafsamhouri', 'lldiegon', 'doskyft'],
-  categories: [
-    PieceCategory.COMMERCE,
-    PieceCategory.PAYMENT_PROCESSING,
-  ],
+  authors: ["lldiegon","doskyft","kishanprmr","MoShizzle","AbdulTheActivePiecer","khaledmashaly","abuaboud"],
+  categories: [PieceCategory.COMMERCE, PieceCategory.PAYMENT_PROCESSING],
   auth: stripeAuth,
   actions: [
     stripeCreateCustomer,
@@ -34,7 +33,7 @@ export const stripe = createPiece({
     createCustomApiCallAction({
       baseUrl: () => 'https://api.stripe.com/v1',
       auth: stripeAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${auth}`,
       }),
     }),

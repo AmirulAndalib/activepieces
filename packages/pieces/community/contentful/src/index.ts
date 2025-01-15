@@ -10,11 +10,13 @@ import { ContentfulAuth } from './lib/common';
 
 export const contentful = createPiece({
   displayName: 'Contentful',
+  description: 'Content infrastructure for digital teams',
+
   auth: ContentfulAuth,
-  minimumSupportedRelease: '0.6.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/contentful.png',
   categories: [PieceCategory.MARKETING],
-  authors: ['cyrilselasi'],
+  authors: ["cyrilselasi","kishanprmr","MoShizzle","abuaboud"],
   actions: [
     ContentfulSearchRecordsAction,
     ContentfulGetRecordAction,
@@ -22,7 +24,7 @@ export const contentful = createPiece({
     createCustomApiCallAction({
       baseUrl: () => `https://api.contentful.com`,
       auth: ContentfulAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${(auth as { apiKey: string }).apiKey}`,
       }),
     }),

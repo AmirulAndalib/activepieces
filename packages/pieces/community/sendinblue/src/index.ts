@@ -11,10 +11,11 @@ export const sendinblueAuth = PieceAuth.SecretText({
 
 export const sendinblue = createPiece({
   displayName: 'Brevo',
-  description: 'sendinblue',
-  minimumSupportedRelease: '0.5.0',
+  description:
+    'Formerly Sendinblue, is a SaaS solution for relationship marketing',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/brevo.png',
-  authors: ['kanarelo'],
+  authors: ["kanarelo","BLaidzX","Salem-Alaa","kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   categories: [PieceCategory.MARKETING],
   auth: sendinblueAuth,
   actions: [
@@ -22,7 +23,7 @@ export const sendinblue = createPiece({
     createCustomApiCallAction({
       baseUrl: () => 'https://api.sendinblue.com/v3',
       auth: sendinblueAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         'api-key': auth as string,
       }),
     }),

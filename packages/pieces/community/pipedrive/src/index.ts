@@ -17,12 +17,14 @@ export const pipedriveAuth = PieceAuth.OAuth2({
   authUrl: 'https://oauth.pipedrive.com/oauth/authorize',
   tokenUrl: 'https://oauth.pipedrive.com/oauth/token',
   required: true,
-  scope: ['admin', 'contacts:full', 'users:read'],
+  scope: ['admin', 'contacts:full', 'users:read','deals:full','activities:full'],
 });
 
 export const pipedrive = createPiece({
   displayName: 'Pipedrive',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Sales CRM and pipeline management software',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/pipedrive.png',
   categories: [PieceCategory.SALES_AND_CRM],
   auth: pipedriveAuth,
@@ -31,11 +33,11 @@ export const pipedrive = createPiece({
     createCustomApiCallAction({
       baseUrl: () => 'https://api.pipedrive.com/v1',
       auth: pipedriveAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${(auth as OAuth2PropertyValue).access_token}`,
       }),
     }),
   ],
-  authors: ['ashrafsamhouri'],
+  authors: ["ashrafsamhouri","kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   triggers: [newPerson, newDeal, newActivity, updatedPerson, updatedDeal],
 });

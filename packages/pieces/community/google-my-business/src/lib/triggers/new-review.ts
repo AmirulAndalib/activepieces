@@ -8,11 +8,10 @@ import {
 import {
   createTrigger,
   OAuth2PropertyValue,
-  PieceAuth,
   TriggerStrategy,
 } from '@activepieces/pieces-framework';
 import dayjs from 'dayjs';
-import { googleBussinessCommon } from '../common/common';
+import { googleBusinessCommon } from '../common/common';
 import { googleAuth } from '../..';
 
 export const newReview = createTrigger({
@@ -21,17 +20,13 @@ export const newReview = createTrigger({
   description: 'Triggers when there is new review',
   auth: googleAuth,
   props: {
-    account: googleBussinessCommon.account,
-    location: googleBussinessCommon.location,
+    account: googleBusinessCommon.account,
+    location: googleBusinessCommon.location,
   },
   sampleData: {},
   type: TriggerStrategy.POLLING,
   async test(ctx) {
-    return await pollingHelper.test(polling, {
-      auth: ctx.auth,
-      store: ctx.store,
-      propsValue: ctx.propsValue,
-    });
+    return await pollingHelper.test(polling, ctx);
   },
   async onEnable(ctx) {
     await pollingHelper.onEnable(polling, {
@@ -48,11 +43,7 @@ export const newReview = createTrigger({
     });
   },
   async run(ctx) {
-    return await pollingHelper.poll(polling, {
-      auth: ctx.auth,
-      store: ctx.store,
-      propsValue: ctx.propsValue,
-    });
+    return await pollingHelper.poll(polling, ctx);
   },
 });
 

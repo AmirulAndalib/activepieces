@@ -1,7 +1,7 @@
+import { Static, Type } from '@sinclair/typebox'
 import { BaseModelSchema, Nullable } from '../common/base-model'
 import { ApId } from '../common/id-generator'
 import { FlowVersion } from './flow-version'
-import { Type, Static } from '@sinclair/typebox'
 
 export type FlowId = ApId
 
@@ -18,6 +18,7 @@ export const FlowScheduleOptions = Type.Object({
     type: Type.Literal(ScheduleType.CRON_EXPRESSION),
     cronExpression: Type.String(),
     timezone: Type.String(),
+    failureCount: Type.Optional(Type.Number()),
 })
 
 export type FlowScheduleOptions = Static<typeof FlowScheduleOptions>
@@ -25,6 +26,7 @@ export type FlowScheduleOptions = Static<typeof FlowScheduleOptions>
 export const Flow = Type.Object({
     ...BaseModelSchema,
     projectId: Type.String(),
+    externalId: Nullable(Type.String()),
     folderId: Nullable(Type.String()),
     status: Type.Enum(FlowStatus),
     schedule: Nullable(FlowScheduleOptions),
@@ -32,7 +34,6 @@ export const Flow = Type.Object({
 })
 
 export type Flow = Static<typeof Flow>
-
 export const PopulatedFlow = Type.Composite([
     Flow,
     Type.Object({

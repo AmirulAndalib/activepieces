@@ -5,6 +5,7 @@ import {
 } from '@activepieces/pieces-framework';
 import { runQuery } from './lib/actions/run-query';
 import { PieceCategory } from '@activepieces/shared';
+import { insertRowAction } from './lib/actions/insert-row';
 
 export const snowflakeAuth = PieceAuth.CustomAuth({
   props: {
@@ -46,11 +47,13 @@ export const snowflakeAuth = PieceAuth.CustomAuth({
 });
 export const snowflake = createPiece({
   displayName: 'Snowflake',
+  description: 'Data warehouse built for the cloud',
+
   auth: snowflakeAuth,
-  minimumSupportedRelease: '0.9.0',
+  minimumSupportedRelease: '0.27.1',
   logoUrl: 'https://cdn.activepieces.com/pieces/snowflake.png',
   categories: [PieceCategory.DEVELOPER_TOOLS],
-  authors: ['AdamSelene'],
-  actions: [runQuery],
+  authors: ['AdamSelene', 'abuaboud'],
+  actions: [runQuery, insertRowAction],
   triggers: [],
 });

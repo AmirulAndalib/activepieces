@@ -13,8 +13,11 @@ import { getRowsAction } from './lib/actions/get-rows';
 import { insertRowAction } from './lib/actions/insert-row.action';
 import { updateRowAction } from './lib/actions/update-row';
 import { googleSheetsCommon } from './lib/common/common';
-import { readNewRows } from './lib/triggers/new-row-added';
 import { newRowAddedTrigger } from './lib/triggers/new-row-added-webhook';
+import { newOrUpdatedRowTrigger } from './lib/triggers/new-or-updated-row.trigger';
+import { insertMultipleRowsAction } from './lib/actions/insert-multiple-rows.action';
+import { createWorksheetAction } from './lib/actions/create-worksheet';
+import { createSpreadsheetAction } from './lib/actions/create-spreadsheet';
 
 export const googleSheetsAuth = PieceAuth.OAuth2({
   description: '',
@@ -25,26 +28,33 @@ export const googleSheetsAuth = PieceAuth.OAuth2({
   scope: [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/drive',
   ],
 });
 
 export const googleSheets = createPiece({
-  minimumSupportedRelease: '0.5.0',
+  minimumSupportedRelease: '0.36.1',
   logoUrl: 'https://cdn.activepieces.com/pieces/google-sheets.png',
   categories: [PieceCategory.PRODUCTIVITY],
   authors: [
-    'abuaboud',
-    'AbdulTheActivepiecer',
-    'Shay Punter',
+    'ShayPunter',
+    'Ozak93',
     'Abdallah-Alwarawreh',
     'Salem-Alaa',
     'kishanprmr',
+    'MoShizzle',
+    'AbdulTheActivePiecer',
+    'khaledmashaly',
+    'abuaboud',
   ],
   actions: [
     insertRowAction,
+    insertMultipleRowsAction,
     deleteRowAction,
     updateRowAction,
     findRowsAction,
+    createSpreadsheetAction,
+    createWorksheetAction,
     clearSheetAction,
     findRowByNumAction,
     getRowsAction,
@@ -53,7 +63,7 @@ export const googleSheets = createPiece({
       baseUrl: () => {
         return googleSheetsCommon.baseUrl;
       },
-      authMapping: (auth) => {
+      authMapping: async (auth) => {
         return {
           Authorization: `Bearer ${(auth as OAuth2PropertyValue).access_token}`,
         };
@@ -61,6 +71,7 @@ export const googleSheets = createPiece({
     }),
   ],
   displayName: 'Google Sheets',
-  triggers: [readNewRows, newRowAddedTrigger],
+  description: 'Create, edit, and collaborate on spreadsheets online',
+  triggers: [newRowAddedTrigger, newOrUpdatedRowTrigger],
   auth: googleSheetsAuth,
 });

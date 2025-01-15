@@ -6,17 +6,18 @@ import { bonjoroAuth } from './lib/auth';
 
 export const bonjoro = createPiece({
   displayName: 'Bonjoro',
+  description: 'Send personal video messages to delight customers',
   auth: bonjoroAuth,
-  minimumSupportedRelease: '0.9.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/bonjoro.png',
   categories: [PieceCategory.CUSTOMER_SUPPORT],
-  authors: ['joeworkman'],
+  authors: ["joeworkman","kishanprmr","MoShizzle","abuaboud"],
   actions: [
     addGreetAction,
     createCustomApiCallAction({
       baseUrl: () => 'https://www.bonjoro.com/api/v2', // replace with the actual base URL
       auth: bonjoroAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${(auth as { apiKey: string }).apiKey}`,
       }),
     }),

@@ -39,9 +39,11 @@ export const zendeskAuth = PieceAuth.CustomAuth({
 
 export const zendesk = createPiece({
   displayName: 'Zendesk',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Customer service software and support ticket system',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/zendesk.png',
-  authors: ['abuaboud'],
+  authors: ["kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   categories: [PieceCategory.CUSTOMER_SUPPORT],
   auth: zendeskAuth,
   actions: [
@@ -51,7 +53,7 @@ export const zendesk = createPiece({
           (auth as { subdomain: string }).subdomain
         }.zendesk.com/api/v2`,
       auth: zendeskAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Basic ${Buffer.from(
           `${(auth as { email: string }).email}/token:${
             (auth as { token: string }).token

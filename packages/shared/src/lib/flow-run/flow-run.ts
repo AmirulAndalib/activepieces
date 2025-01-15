@@ -1,38 +1,10 @@
-import { BaseModel } from '../common/base-model'
-import { ProjectId } from '../project/project'
-import { FlowVersionId } from '../flows/flow-version'
-import { FileId } from '../file/file'
+import { Static, Type } from '@sinclair/typebox'
+import { BaseModelSchema, Nullable } from '../common/base-model'
 import { ApId } from '../common/id-generator'
-import {
-    ExecutionOutput,
-    ExecutionOutputStatus,
-    PauseMetadata,
-} from './execution/execution-output'
-import { FlowId } from '../flows/flow'
+import { ExecutionState } from './execution/execution-output'
+import { FlowRunStatus, PauseMetadata } from './execution/flow-execution'
 
 export type FlowRunId = ApId
-
-export enum RunTerminationReason {
-    STOPPED_BY_HOOK = 'STOPPED_BY_HOOK',
-}
-
-export type FlowRun = BaseModel<FlowRunId> & {
-    id: FlowRunId
-    projectId: ProjectId
-    flowId: FlowId
-    tags?: string[]
-    flowVersionId: FlowVersionId
-    flowDisplayName: string
-    terminationReason?: RunTerminationReason
-    logsFileId: FileId | null
-    tasks?: number
-    status: ExecutionOutputStatus
-    startTime: string
-    finishTime: string
-    environment: RunEnvironment
-    pauseMetadata?: PauseMetadata | null
-    executionOutput?: ExecutionOutput
-}
 
 export enum RunEnvironment {
     PRODUCTION = 'PRODUCTION',
@@ -47,3 +19,25 @@ export enum FlowRetryStrategy {
 export type FlowRetryPayload = {
     strategy: FlowRetryStrategy
 }
+
+export const FlowRun = Type.Object({
+    ...BaseModelSchema,
+    projectId: Type.String(),
+    flowId: Type.String(),
+    tags: Type.Optional(Type.Array(Type.String())),
+    flowVersionId: Type.String(),
+    flowDisplayName: Type.String(),
+    // TODO remove this, and create migration to remove it
+    terminationReason: Type.Optional(Type.String()),
+    logsFileId: Nullable(Type.String()),
+    tasks: Type.Optional(Type.Number()),
+    status: Type.Enum(FlowRunStatus),
+    duration: Type.Optional(Type.Number()),
+    startTime: Type.String(),
+    finishTime: Type.Optional(Type.String()),
+    environment: Type.Enum(RunEnvironment),
+    pauseMetadata: Type.Optional(PauseMetadata),
+    steps: Type.Record(Type.String(), Type.Unknown()),
+})
+
+export type FlowRun = Static<typeof FlowRun> & ExecutionState

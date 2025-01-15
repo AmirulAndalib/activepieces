@@ -39,7 +39,9 @@ export const requestAction = async (conversationId: string, context: any) => {
     assertNotNullOrUndefined(text, 'text');
 
     const actionElements = actionTextToIds.map((action: any) => {
-      const actionLink = `${context.serverUrl}v1/flow-runs/${context.run.id}/resume?action=${action.actionId}`;
+      const actionLink = context.generateResumeUrl({
+        queryParams: { action: action.actionId },
+      });
 
       return {
         type: 'button',
@@ -52,7 +54,7 @@ export const requestAction = async (conversationId: string, context: any) => {
       };
     });
 
-    return await slackSendMessage({
+    await slackSendMessage({
       token,
       text: `${context.propsValue.text}`,
       username,
@@ -73,6 +75,10 @@ export const requestAction = async (conversationId: string, context: any) => {
       ],
       conversationId: conversationId,
     });
+
+    return {
+      action: 'N/A',
+    };
   } else {
     const payload = context.resumePayload as { action: string };
 

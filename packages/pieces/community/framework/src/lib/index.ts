@@ -4,6 +4,4 @@ export * from './trigger/trigger';
 export * from './context';
 export * from './piece';
 export * from './piece-metadata';
-export * from './validators/validators';
-export * from './processors/processors';
-export * from './processors/types';
+export * from './validators/index'

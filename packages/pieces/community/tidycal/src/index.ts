@@ -35,16 +35,17 @@ export const tidyCalAuth = PieceAuth.SecretText({
 
 export const tidycal = createPiece({
   displayName: 'TidyCal',
+  description: 'Streamline your scheduling',
   auth: tidyCalAuth,
-  minimumSupportedRelease: '0.7.1',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/tidycal.png',
   categories: [PieceCategory.PRODUCTIVITY],
-  authors: ['Salem-Alaa'],
+  authors: ["Salem-Alaa","kishanprmr","MoShizzle","abuaboud"],
   actions: [
     createCustomApiCallAction({
       baseUrl: () => 'https://tidycal.com/api',
       auth: tidyCalAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${auth}`,
       }),
     }),

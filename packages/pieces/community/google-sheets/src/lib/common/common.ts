@@ -1,4 +1,8 @@
-import { Property, OAuth2PropertyValue, NumberProperty, Processors, Validators } from '@activepieces/pieces-framework';
+import {
+  Property,
+  OAuth2PropertyValue,
+  PiecePropValueSchema,
+} from '@activepieces/pieces-framework';
 import {
   httpClient,
   HttpMethod,
@@ -6,7 +10,11 @@ import {
   HttpRequest,
   getAccessTokenOrThrow,
 } from '@activepieces/pieces-common';
-import { isString } from '@activepieces/shared';
+import { isNil, isString } from '@activepieces/shared';
+import { google } from 'googleapis';
+import { OAuth2Client } from 'googleapis-common';
+import { googleSheetsAuth } from '../../';
+import { transformWorkSheetValues } from '../triggers/helpers';
 
 export const googleSheetsCommon = {
   baseUrl: 'https://sheets.googleapis.com/v4/spreadsheets',
@@ -20,14 +28,22 @@ export const googleSheetsCommon = {
   spreadsheet_id: Property.Dropdown({
     displayName: 'Spreadsheet',
     required: true,
+    refreshOnSearch: true,
     refreshers: ['include_team_drives'],
-    options: async ({ auth, include_team_drives }) => {
+    options: async ({ auth, include_team_drives }, { searchValue }) => {
       if (!auth) {
         return {
           disabled: true,
           options: [],
           placeholder: 'Please authenticate first',
         };
+      }
+      const queries = [
+        "mimeType='application/vnd.google-apps.spreadsheet'",
+        'trashed=false',
+      ];
+      if (searchValue) {
+        queries.push(`name contains '${searchValue}'`);
       }
       const authProp: OAuth2PropertyValue = auth as OAuth2PropertyValue;
       const spreadsheets = (
@@ -36,7 +52,7 @@ export const googleSheetsCommon = {
             method: HttpMethod.GET,
             url: `https://www.googleapis.com/drive/v3/files`,
             queryParams: {
-              q: "mimeType='application/vnd.google-apps.spreadsheet'",
+              q: queries.join(' and '),
               includeItemsFromAllDrives: include_team_drives ? 'true' : 'false',
               supportsAllDrives: 'true',
             },
@@ -101,12 +117,13 @@ export const googleSheetsCommon = {
       ) {
         return {};
       }
+      const sheetId = Number(sheet_id);
       const authentication = auth as OAuth2PropertyValue;
-      const values = await googleSheetsCommon.getValues(
-        spreadsheet_id as unknown as string,
-        getAccessTokenOrThrow(authentication),
-        sheet_id as unknown as number
-      );
+      const headers = await googleSheetsCommon.getHeaderRow({
+        spreadsheetId: spreadsheet_id as unknown as string,
+        accessToken: getAccessTokenOrThrow(authentication),
+        sheetId,
+      });
 
       if (!first_row_headers) {
         return {
@@ -116,14 +133,15 @@ export const googleSheetsCommon = {
           }),
         };
       }
-      const firstRow = values?.[0]?.values ?? [];
+      const firstRow = headers ?? [];
       const properties: {
         [key: string]: any;
       } = {};
-      for (const key in firstRow) {
-        properties[key] = Property.ShortText({
-          displayName: firstRow[key].toString(),
-          description: firstRow[key].toString(),
+      for (let i = 0; i < firstRow.length; i++) {
+        const label = columnToLabel(i);
+        properties[label] = Property.ShortText({
+          displayName: firstRow[i].toString(),
+          description: firstRow[i].toString(),
           required: false,
           defaultValue: '',
         });
@@ -139,7 +157,7 @@ export const googleSheetsCommon = {
     options: async (context) => {
       const authentication = context.auth as OAuth2PropertyValue;
       const spreadsheet_id = context.spreadsheet_id as string;
-      const sheet_id = context.sheet_id as number;
+      const sheet_id = Number(context.sheet_id) as number;
       const accessToken = authentication['access_token'] ?? '';
 
       if (
@@ -164,28 +182,26 @@ export const googleSheetsCommon = {
         throw Error('Sheet not found in spreadsheet');
       }
 
-      const values: {
-        row: number;
-        values: {
-          [x: string]: string[];
-        }[];
-      }[] = await googleSheetsCommon.getValues(
-        spreadsheet_id,
-        accessToken,
-        sheet_id
-      );
+      const headers = await getHeaderRow({
+        spreadsheetId: spreadsheet_id,
+        accessToken: accessToken,
+        sheetId: sheet_id,
+      });
 
       const ret = [];
 
-      const firstRow = values[0].values;
       const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-      if (firstRow.length === 0) {
-        let columnSize = 1;
+      if(isNil(headers)) {
+        return {
+          options: [],
+          disabled: false,
+        };
+      }
+      if (headers.length === 0) {
+        const columnSize = headers.length;
 
-        for (const row of values) {
-          columnSize = Math.max(columnSize, row.values.length);
-        }
+
 
         for (let i = 0; i < columnSize; i++) {
           ret.push({
@@ -195,7 +211,7 @@ export const googleSheetsCommon = {
         }
       } else {
         let index = 0;
-        for (const key in firstRow) {
+        for (let i = 0; i < headers.length; i++) {
           let value = 'A';
           if (index >= alphabet.length) {
             // if the index is greater than the length of the alphabet, we need to add another letter
@@ -208,7 +224,7 @@ export const googleSheetsCommon = {
           }
 
           ret.push({
-            label: firstRow[key].toString(),
+            label: headers[i].toString(),
             value: value,
           });
           index++;
@@ -220,114 +236,32 @@ export const googleSheetsCommon = {
       };
     },
   }),
-  getValues: getValues,
-  appendGoogleSheetValues: appendGoogleSheetValues,
-  updateGoogleSheetRow: updateGoogleSheetRow,
-  findSheetName: findSheetName,
-  deleteRow: deleteRow,
-  clearSheet: clearSheet,
+  getGoogleSheetRows,
+  findSheetName,
+  deleteRow,
+  clearSheet,
+  getHeaderRow,
 };
 
-type UpdateGoogleSheetRowParams = {
-  values: string[];
-  spreadSheetId: string;
-  valueInputOption: ValueInputOption;
-  rowIndex: number;
-  accessToken: string;
-  sheetName: string;
-};
-
-type AppendGoogleSheetValuesParams = {
-  values: string[];
-  spreadSheetId: string;
-  range: string;
-  valueInputOption: ValueInputOption;
-  majorDimension: Dimension;
-  accessToken: string;
-};
 
 export async function findSheetName(
   access_token: string,
   spreadsheetId: string,
-  sheetId: number
+  sheetId: string | number
 ) {
   const sheets = await listSheetsName(access_token, spreadsheetId);
-  const sheetName = sheets.find((f) => f.properties.sheetId === sheetId)
+  // don't use === because sheetId can be a string when dynamic values are used
+  const sheetName = sheets.find((f) => f.properties.sheetId == sheetId)
     ?.properties.title;
   if (!sheetName) {
-    throw Error(`Sheet with ID ${sheetId} not found in spreadsheet ${spreadsheetId}`);
+    throw Error(
+      `Sheet with ID ${sheetId} not found in spreadsheet ${spreadsheetId}`
+    );
   }
   return sheetName;
 }
 
-export async function getGoogleSheetRows(params: {
-  accessToken: string;
-  sheetName: string;
-  spreadSheetId: string;
-  rowIndex_s: number;
-  rowIndex_e: number;
-}) {
-  const request: HttpRequest = {
-    method: HttpMethod.GET,
-    url: `${googleSheetsCommon.baseUrl}/${params.spreadSheetId}/values/${params.sheetName}!A${params.rowIndex_s}:ZZZ${params.rowIndex_e}`,
-    authentication: {
-      type: AuthenticationType.BEARER_TOKEN,
-      token: params.accessToken,
-    },
-  };
-  const response = await httpClient.sendRequest<{ values: [string[]][] }>(
-    request
-  );
-  if (response.body.values === undefined) return [];
 
-  const res = [];
-  for (let i = 0; i < response.body.values.length; i++) {
-    const values: any = {};
-    for (let j = 0; j < response.body.values[i].length; j++) {
-      values[columnToLabel(j)] = response.body.values[i][j];
-    }
-
-    res.push({
-      row: i + params.rowIndex_s,
-      values,
-    });
-  }
-
-  return res;
-}
-export async function getAllGoogleSheetRows(params: {
-  accessToken: string;
-  sheetName: string;
-  spreadSheetId: string;
-}) {
-  const request: HttpRequest = {
-    method: HttpMethod.GET,
-    url: `${googleSheetsCommon.baseUrl}/${params.spreadSheetId}/values/${params.sheetName}`,
-    authentication: {
-      type: AuthenticationType.BEARER_TOKEN,
-      token: params.accessToken,
-    },
-  };
-  const response = await httpClient.sendRequest<{ values: [string[]][] }>(
-    request
-  );
-  if (response.body.values === undefined) return [];
-
-  const res = [];
-  for (let i = 0; i < response.body.values.length; i++) {
-    const values: any = {};
-    for (let j = 0; j < response.body.values[i].length; j++) {
-      values[columnToLabel(j)] = response.body.values[i][j];
-    }
-
-    res.push({
-      row: i + 1,
-      values,
-    });
-  }
-
-  return res;
-}
 async function listSheetsName(access_token: string, spreadsheet_id: string) {
   return (
     await httpClient.sendRequest<{
@@ -343,85 +277,89 @@ async function listSheetsName(access_token: string, spreadsheet_id: string) {
   ).body.sheets;
 }
 
-async function updateGoogleSheetRow(params: UpdateGoogleSheetRowParams) {
-  return httpClient.sendRequest({
-    method: HttpMethod.PUT,
-    url: `https://sheets.googleapis.com/v4/spreadsheets/${params.spreadSheetId}/values/${params.sheetName}!A${params.rowIndex}:ZZZ${params.rowIndex}`,
-    body: {
-      majorDimension: Dimension.ROWS,
-      range: `${params.sheetName}!A${params.rowIndex}:ZZZ${params.rowIndex}`,
-      values: [params.values],
-    },
-    authentication: {
-      type: AuthenticationType.BEARER_TOKEN,
-      token: params.accessToken,
-    },
-    queryParams: {
-      valueInputOption: params.valueInputOption,
-    },
-  });
+
+
+type GetGoogleSheetRowsProps = {
+  spreadsheetId: string;
+  accessToken: string;
+  sheetId: number;
+  rowIndex_s: number | undefined;
+  rowIndex_e: number | undefined;
 }
 
-async function appendGoogleSheetValues(params: AppendGoogleSheetValuesParams) {
-  const requestBody = {
-    majorDimension: params.majorDimension,
-    range: params.range + '!A:A',
-    values: params.values.map((val) => ({ values: val })),
-  };
-
-  const request: HttpRequest<typeof requestBody> = {
-    method: HttpMethod.POST,
-    url: `https://sheets.googleapis.com/v4/spreadsheets/${params.spreadSheetId}/values/${params.range}!A:A:append`,
-    body: requestBody,
-    authentication: {
-      type: AuthenticationType.BEARER_TOKEN,
-      token: params.accessToken,
-    },
-    queryParams: {
-      valueInputOption: params.valueInputOption,
-    },
-  };
-  return httpClient.sendRequest(request);
-}
-
-async function getValues(
-  spreadsheetId: string,
-  accessToken: string,
-  sheetId: number
-): Promise<{ row: number; values: { [x: string]: string[] }[] }[]> {
+async function getGoogleSheetRows({
+  spreadsheetId,
+  accessToken,
+  sheetId,
+  rowIndex_s,
+  rowIndex_e,
+}: GetGoogleSheetRowsProps): Promise<{ row: number; values: { [x: string]: string } }[]> {
   // Define the API endpoint and headers
   // Send the API request
   const sheetName = await findSheetName(accessToken, spreadsheetId, sheetId);
   if (!sheetName) {
     return [];
   }
-  const request: HttpRequest = {
+
+  let range = '';
+  if (rowIndex_s !== undefined) {
+    range = `!A${rowIndex_s}:ZZZ`;
+  }
+  if (rowIndex_s !== undefined && rowIndex_e !== undefined) {
+    range = `!A${rowIndex_s}:ZZZ${rowIndex_e}`;
+  }
+  const rowsResponse = await httpClient.sendRequest<{ values: [string[]][] }>({
+      method: HttpMethod.GET,
+      url: `${googleSheetsCommon.baseUrl}/${spreadsheetId}/values/${sheetName}${range}`,
+      authentication: {
+        type: AuthenticationType.BEARER_TOKEN,
+        token: accessToken,
+      },
+    }
+  );
+  if (rowsResponse.body.values === undefined) return [];
+
+  const headerResponse = await httpClient.sendRequest<{ values: [string[]][] }>({
     method: HttpMethod.GET,
-    url: `${googleSheetsCommon.baseUrl}/${spreadsheetId}/values/${sheetName}`,
+    url: `${googleSheetsCommon.baseUrl}/${spreadsheetId}/values/${sheetName}!A1:ZZZ1`,
     authentication: {
       type: AuthenticationType.BEARER_TOKEN,
       token: accessToken,
     },
-  };
-  const response = await httpClient.sendRequest<{ values: [string[]][] }>(
-    request
-  );
-  if (response.body.values === undefined) return [];
+  });
 
-  const res = [];
-  for (let i = 0; i < response.body.values.length; i++) {
-    const values: any = {};
-    for (let j = 0; j < response.body.values[i].length; j++) {
-      values[columnToLabel(j)] = response.body.values[i][j];
-    }
+  const headers = headerResponse.body.values[0]??[];
+  const headerCount = headers.length;
 
-    res.push({
-      row: i + 1,
-      values,
-    });
+  const startingRow = rowIndex_s? rowIndex_s-1:0;
+
+  const labeledRowValues = transformWorkSheetValues(rowsResponse.body.values,startingRow,headerCount);
+
+  return labeledRowValues;
+}
+
+type GetHeaderRowProps = {
+  spreadsheetId: string;
+  accessToken: string;
+  sheetId: number;
+}
+
+export async function getHeaderRow({
+  spreadsheetId,
+  accessToken,
+  sheetId,
+}: GetHeaderRowProps): Promise<string[] | undefined> {
+  const rows = await getGoogleSheetRows({
+    spreadsheetId,
+    accessToken,
+    sheetId,
+    rowIndex_s: 1,
+    rowIndex_e: 1,
+  });
+  if (rows.length === 0) {
+    return undefined;
   }
-
-  return res;
+  return objectToArray(rows[0].values);
 }
 
 export const columnToLabel = (columnIndex: number) => {
@@ -527,7 +465,7 @@ async function clearSheet(
       ],
     },
   };
-  await httpClient.sendRequest(request);
+  return await httpClient.sendRequest(request);
 }
 
 export enum ValueInputOption {
@@ -538,4 +476,12 @@ export enum ValueInputOption {
 export enum Dimension {
   ROWS = 'ROWS',
   COLUMNS = 'COLUMNS',
+}
+
+export async function createGoogleSheetClient(auth: PiecePropValueSchema<typeof googleSheetsAuth>) {
+  const authClient = new OAuth2Client();
+  authClient.setCredentials(auth);
+
+  const googleSheetClient = google.sheets({ version: 'v4', auth: authClient });
+  return googleSheetClient;
 }
