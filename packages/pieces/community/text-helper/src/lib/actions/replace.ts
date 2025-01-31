@@ -1,10 +1,18 @@
-import { Property, Validators, createAction } from '@activepieces/pieces-framework';
+import { Property, createAction } from '@activepieces/pieces-framework';
 
 export const replace = createAction({
   description:
     'Replaces all instances of any word, character or phrase in text, with another.',
   displayName: 'Replace',
   name: 'replace',
+  errorHandlingOptions: {
+    continueOnFailure: {
+      hide: true,
+    },
+    retryOnFailure: {
+      hide: true,
+    },
+  },
   props: {
     text: Property.ShortText({
       displayName: 'Text',
@@ -14,7 +22,6 @@ export const replace = createAction({
       displayName: 'Search Value',
       description: 'Can be plain text or a regex expression.',
       required: true,
-      validators: [],
     }),
     replaceValue: Property.ShortText({
       displayName: 'Replace Value',

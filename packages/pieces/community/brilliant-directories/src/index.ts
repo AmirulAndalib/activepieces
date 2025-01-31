@@ -24,7 +24,7 @@ export const brilliantDirectoriesAuth = PieceAuth.CustomAuth({
     }),
     site_url: Property.ShortText({
       displayName: 'Instance Url',
-      description: 'The url of the brillant directories instance.',
+      description: 'The url of the brilliant directories instance.',
       required: true,
       defaultValue: 'https://yoursitehere.com/api',
     }),
@@ -33,17 +33,19 @@ export const brilliantDirectoriesAuth = PieceAuth.CustomAuth({
 
 export const brilliantDirectories = createPiece({
   displayName: 'Brilliant Directories',
+  description: 'All-in-one membership software',
+
   auth: brilliantDirectoriesAuth,
-  minimumSupportedRelease: '0.9.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/brilliant-directories.png',
   categories: [],
-  authors: ['Shay Punter', 'Tim M'],
+  authors: ["ShayPunter","dennisrongo","kishanprmr","MoShizzle","abuaboud"],
   actions: [
     createNewUser,
     createCustomApiCallAction({
       baseUrl: (auth) => (auth as { site_url: string }).site_url,
       auth: brilliantDirectoriesAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         'X-Api-Key': `${(auth as { api_key: string }).api_key}`,
       }),
     }),

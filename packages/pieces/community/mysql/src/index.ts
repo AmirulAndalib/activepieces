@@ -31,8 +31,8 @@ export const mysqlAuth = PieceAuth.CustomAuth({
     }),
     database: Property.ShortText({
       displayName: 'Database',
-      description: 'The name of the database to use',
-      required: true,
+      description: 'The name of the database to use. Required if you are not using the "Execute Query" Action',
+      required: false,
     }),
   },
   required: true,
@@ -40,10 +40,12 @@ export const mysqlAuth = PieceAuth.CustomAuth({
 
 export const mysql = createPiece({
   displayName: 'MySQL',
-  minimumSupportedRelease: '0.5.0',
+  description: "The world's most popular open-source database",
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/mysql.png',
   categories: [PieceCategory.DEVELOPER_TOOLS],
-  authors: ['JanHolger'],
+  authors: ["JanHolger","kishanprmr","khaledmashaly","abuaboud"],
   auth: mysqlAuth,
   actions,
   triggers: [],

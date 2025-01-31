@@ -32,17 +32,20 @@ export const matrixAuth = PieceAuth.CustomAuth({
 
 export const matrix = createPiece({
   displayName: 'Matrix',
+  description:
+    'Open standard for interoperable, decentralized, real-time communication',
+
   logoUrl: 'https://cdn.activepieces.com/pieces/matrix.png',
   categories: [PieceCategory.COMMUNICATION],
-  minimumSupportedRelease: '0.5.0',
-  authors: ['abuaboud'],
+  minimumSupportedRelease: '0.30.0',
+  authors: ["MyWay","kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   auth: matrixAuth,
   actions: [
     sendMessage,
     createCustomApiCallAction({
       baseUrl: (auth) => (auth as { base_url: string }).base_url,
       auth: matrixAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${
           (auth as { access_token: string }).access_token
         }`,

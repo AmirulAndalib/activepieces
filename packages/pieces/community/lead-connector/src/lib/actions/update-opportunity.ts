@@ -1,11 +1,9 @@
 import {
   createAction,
+  OAuth2PropertyValue,
   Property,
-  Validators,
 } from '@activepieces/pieces-framework';
 import {
-  addContact,
-  createOpportunity,
   getContacts,
   getOpportunities,
   getOpportunity,
@@ -16,6 +14,8 @@ import {
   updateOpportunity,
 } from '../common';
 import { leadConnectorAuth } from '../..';
+import { z } from 'zod';
+import { propsValidation } from '@activepieces/pieces-common';
 
 export const updateOpportunityAction = createAction({
   auth: leadConnectorAuth,
@@ -36,7 +36,7 @@ export const updateOpportunityAction = createAction({
           };
         }
 
-        const pipelines = await getPipelines(auth as string);
+        const pipelines = await getPipelines(auth as OAuth2PropertyValue);
         return {
           options: pipelines.map((pipeline: any) => {
             return {
@@ -60,7 +60,7 @@ export const updateOpportunityAction = createAction({
         }
 
         const opportunities = await getOpportunities(
-          auth as string,
+          auth as OAuth2PropertyValue,
           pipeline as string
         );
         return {
@@ -87,16 +87,18 @@ export const updateOpportunityAction = createAction({
         }
 
         const pipelineObj = await getPipeline(
-          auth as string,
+          auth as OAuth2PropertyValue,
           pipeline as string
         );
         return {
-          options: pipelineObj.stages.map((stage: any) => {
-            return {
-              label: stage.name,
-              value: stage.id,
-            };
-          }),
+          options: pipelineObj
+            ? pipelineObj.stages.map((stage: any) => {
+                return {
+                  label: stage.name,
+                  value: stage.id,
+                };
+              })
+            : [],
         };
       },
     }),
@@ -116,7 +118,7 @@ export const updateOpportunityAction = createAction({
             options: [],
           };
 
-        const contacts = await getContacts(auth as string);
+        const contacts = await getContacts(auth as OAuth2PropertyValue);
         return {
           options: contacts.map((contact) => {
             return {
@@ -155,7 +157,7 @@ export const updateOpportunityAction = createAction({
             options: [],
           };
 
-        const users = await getUsers(auth as string);
+        const users = await getUsers(auth as OAuth2PropertyValue);
         return {
           options: users.map((user: any) => {
             return {
@@ -169,11 +171,14 @@ export const updateOpportunityAction = createAction({
     monetaryValue: Property.Number({
       displayName: 'Monetary Value',
       required: false,
-      validators: [Validators.number],
     }),
   },
 
   async run({ auth, propsValue }) {
+    await propsValidation.validateZod(propsValue, {
+      monetaryValue: z.number().optional(),
+    });
+
     const {
       pipeline,
       opportunity,
@@ -187,13 +192,18 @@ export const updateOpportunityAction = createAction({
 
     let originalData: any;
     if (!title || !stage || !status)
-      originalData = await getOpportunity(auth, pipeline, opportunity);
+      originalData = await getOpportunity(
+        auth.access_token,
+        pipeline,
+        opportunity
+      );
 
-    return await updateOpportunity(auth, pipeline, opportunity, {
-      stageId: stage ?? originalData.pipelineStageId,
+    return await updateOpportunity(auth.access_token, opportunity, {
+      pipelineId: pipeline ?? originalData.pipelineId,
+      pipelineStageId: stage ?? originalData.pipelineStageId,
       contactId: contact,
       status: status ?? originalData.status,
-      title: title ?? originalData.name,
+      name: title ?? originalData.name,
       assignedTo: assignedTo,
       monetaryValue: monetaryValue,
     });

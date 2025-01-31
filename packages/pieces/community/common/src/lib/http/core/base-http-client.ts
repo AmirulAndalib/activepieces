@@ -5,9 +5,9 @@ import { HttpHeader } from './http-header';
 import type { HttpHeaders } from './http-headers';
 import type { HttpMessageBody } from './http-message-body';
 import type { HttpRequest } from './http-request';
+import { HttpRequestBody } from './http-request-body';
 import { HttpResponse } from './http-response';
 import { MediaType } from './media-type';
-import { URL } from 'node:url';
 
 export abstract class BaseHttpClient implements HttpClient {
   constructor(
@@ -24,14 +24,14 @@ export abstract class BaseHttpClient implements HttpClient {
     request: HttpRequest<RequestBody>
   ): {
     urlWithoutQueryParams: string;
-    queryParams: Record<string, string>;
+    queryParams: URLSearchParams;
   } {
     const url = new URL(`${this.baseUrl}${request.url}`);
     const urlWithoutQueryParams = `${url.origin}${url.pathname}`;
-    const queryParams: Record<string, string> = {};
+    const queryParams = new URLSearchParams();
     // Extract query parameters
     url.searchParams.forEach((value, key) => {
-      queryParams[key] = value;
+      queryParams.append(key, value);
     });
     return {
       urlWithoutQueryParams,
@@ -39,7 +39,7 @@ export abstract class BaseHttpClient implements HttpClient {
     };
   }
 
-  protected getHeaders<RequestBody extends HttpMessageBody>(
+  protected getHeaders<RequestBody extends HttpRequestBody>(
     request: HttpRequest<RequestBody>
   ): HttpHeaders {
     let requestHeaders: HttpHeaders = {

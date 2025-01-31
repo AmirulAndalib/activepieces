@@ -1,7 +1,7 @@
 
-import { pieceExecutor } from '../../src/lib/handler/piece-executor'
 import { codeExecutor } from '../../src/lib/handler/code-executor'
 import { ExecutionVerdict, FlowExecutorContext } from '../../src/lib/handler/context/flow-execution-context'
+import { pieceExecutor } from '../../src/lib/handler/piece-executor'
 import { buildCodeAction, buildPieceAction, generateMockEngineConstants } from './test-helper'
 
 describe('code piece with error handling', () => {
@@ -37,11 +37,12 @@ describe('piece with error handling', () => {
                 pieceName: '@activepieces/piece-http',
                 actionName: 'send_request',
                 input: {
-                    'url': 'https://cloud.activepieces.com/api/v1/asd',
-                    'method': 'GET',
+                    'method': 'POST',
+                    'url': 'https://cloud.activepieces.com/api/v1/flags',
                     'headers': {},
-                    'failsafe': false,
                     'queryParams': {},
+                    'body_type': 'none',
+                    'body': {},
                 },
                 errorHandlingOptions: {
                     continueOnFailure: {
@@ -53,22 +54,23 @@ describe('piece with error handling', () => {
                 },
             }), executionState: FlowExecutorContext.empty(), constants: generateMockEngineConstants(),
         })
+
+        const expectedError = {
+            response: {
+                status: 404,
+                body: {
+                    statusCode: 404,
+                    error: 'Not Found',
+                    message: 'Route not found',
+                },
+            },
+            request: {},
+        }
+
         expect(result.verdict).toBe(ExecutionVerdict.RUNNING)
         expect(result.steps.send_http.status).toBe('FAILED')
-        expect(result.steps.send_http.errorMessage).toEqual({
-            request: {
-                
-            },
-            response: {
-                'body': {
-                    'error': 'Not Found',
-                    'message': 'Route not found',
-                    'statusCode': 404,
-                },
-                status: 404,
-            },
-        })
-          
+        expect(result.steps.send_http.errorMessage).toEqual(JSON.stringify(expectedError))
+
     })
 
 })

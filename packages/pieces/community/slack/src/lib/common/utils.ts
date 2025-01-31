@@ -1,11 +1,5 @@
-import {
-  AuthenticationType,
-  httpClient,
-  HttpMethod,
-  HttpRequest,
-  HttpResponse,
-} from '@activepieces/pieces-common';
 import { ApFile } from '@activepieces/pieces-framework';
+import { Block, WebClient } from '@slack/web-api';
 
 export const slackSendMessage = async ({
   text,
@@ -13,59 +7,34 @@ export const slackSendMessage = async ({
   username,
   profilePicture,
   blocks,
+  threadTs,
   token,
   file,
 }: SlackSendMessageParams) => {
-  let response: HttpResponse;
-  let request: HttpRequest;
+  const client = new WebClient(token);
 
   if (file) {
-    const formData = new FormData();
-    formData.append('file', new Blob([file.data]));
-    formData.append('channels', conversationId);
-    formData.append('initial_comment', text);
-
-    request = {
-      url: `https://slack.com/api/files.upload`,
-      method: HttpMethod.POST,
-      body: formData,
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      authentication: {
-        type: AuthenticationType.BEARER_TOKEN,
-        token,
-      },
-    };
-    response = await httpClient.sendRequest(request);
+    return await client.files.uploadV2({
+      channel_id: conversationId,
+      initial_comment: text,
+      thread_ts: threadTs,
+      file_uploads: [
+        {
+          file: file.data,
+          filename: file.filename,
+        },
+      ],
+    });
   } else {
-    const body: any = {
+    return await client.chat.postMessage({
       text,
       channel: conversationId,
-    };
-
-    if (username) body['username'] = username;
-    if (profilePicture) body['icon_url'] = profilePicture;
-    if (blocks) body['blocks'] = blocks;
-
-    request = {
-      method: HttpMethod.POST,
-      url: 'https://slack.com/api/chat.postMessage',
-      body,
-      authentication: {
-        type: AuthenticationType.BEARER_TOKEN,
-        token,
-      },
-    };
-
-    response = await httpClient.sendRequest(request);
+      username,
+      icon_url: profilePicture,
+      blocks: blocks as Block[],
+      thread_ts: threadTs,
+    });
   }
-
-  return {
-    success: true,
-    request_body: request.body,
-    response_body: response.body,
-  };
 };
 
 type SlackSendMessageParams = {
@@ -73,7 +42,28 @@ type SlackSendMessageParams = {
   conversationId: string;
   username?: string;
   profilePicture?: string;
-  blocks?: unknown[];
+  blocks?: unknown[] | Record<string, any>;
   text: string;
   file?: ApFile;
+  threadTs?: string;
 };
+
+export function processMessageTimestamp(input: string) {
+  // Regular expression to match a URL containing the timestamp
+  const urlRegex = /\/p(\d+)(\d{6})$/;
+  // Check if the input is a URL
+  const urlMatch = input.match(urlRegex);
+  if (urlMatch) {
+    const timestamp = `${urlMatch[1]}.${urlMatch[2]}`;
+    return timestamp;
+  }
+
+  // Check if the input is already in the desired format
+  const timestampRegex = /^(\d+)\.(\d{6})$/;
+  const timestampMatch = input.match(timestampRegex);
+  if (timestampMatch) {
+    return input;
+  }
+
+  return undefined;
+}

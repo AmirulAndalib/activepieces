@@ -20,6 +20,7 @@ import { createProductAction } from './lib/actions/create-product';
 import { createTransactionAction } from './lib/actions/create-transaction';
 import { getAssetAction } from './lib/actions/get-asset';
 import { getCustomerAction } from './lib/actions/get-customer';
+import { getCustomersAction } from './lib/actions/get-customers';
 import { getCustomerOrdersAction } from './lib/actions/get-customer-orders';
 import { getFulfillmentAction } from './lib/actions/get-fulfillment';
 import { getFulfillmentsAction } from './lib/actions/get-fulfillments';
@@ -42,7 +43,11 @@ import { newPaidOrder } from './lib/triggers/new-paid-order';
 import { updatedProduct } from './lib/triggers/updated-product';
 
 const markdown = `
-To Obtain an Admin Token, follow these steps:
+**Shop Name**:
+
+You can find your shop name in the url For example, if the URL is \`https://example.myshopify.com/admin\`, then your shop name is **example**.
+
+**Admin Token**:
 
 1. Login to your Shopify account
 2. Go to Settings -> Apps
@@ -52,9 +57,6 @@ To Obtain an Admin Token, follow these steps:
 6. Click on Configure Admin API Scopes (Select the following scopes 'read_orders', 'write_orders', 'write_customers', 'read_customers', 'write_products', 'read_products', 'write_draft_orders', 'read_draft_orders')
 7. Click on Install app
 8. Copy the Admin Access Token
-
-**Shop Name**
-1- You can find your shop name in the url For example, if the URL is https://example.myshopify.com/admin, then your shop name is **example**.
 `;
 
 export const shopifyAuth = PieceAuth.CustomAuth({
@@ -91,10 +93,11 @@ export const shopifyAuth = PieceAuth.CustomAuth({
 
 export const shopify = createPiece({
   displayName: 'Shopify',
+  description: 'Ecommerce platform for online stores',
   logoUrl: 'https://cdn.activepieces.com/pieces/shopify.png',
-  authors: ['abuaboud', 'MoShizzle'],
+  authors: ["kishanprmr","MoShizzle","AbdulTheActivePiecer","khaledmashaly","abuaboud","ikus060"],
   categories: [PieceCategory.COMMERCE],
-  minimumSupportedRelease: '0.5.0',
+  minimumSupportedRelease: '0.30.0',
   auth: shopifyAuth,
   actions: [
     adjustInventoryLevelAction,
@@ -109,6 +112,7 @@ export const shopify = createPiece({
     createTransactionAction,
     getAssetAction,
     getCustomerAction,
+    getCustomersAction,
     getCustomerOrdersAction,
     getFulfillmentAction,
     getFulfillmentsAction,
@@ -127,7 +131,7 @@ export const shopify = createPiece({
         return getBaseUrl((auth as { shopName: string }).shopName);
       },
       auth: shopifyAuth,
-      authMapping: (auth) => {
+      authMapping: async (auth) => {
         const typedAuth = auth as { adminToken: string };
         return {
           'X-Shopify-Access-Token': typedAuth.adminToken,

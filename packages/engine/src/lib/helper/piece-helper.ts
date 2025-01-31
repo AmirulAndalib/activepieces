@@ -9,30 +9,33 @@ import {
     StaticPropsValue,
 } from '@activepieces/pieces-framework'
 import {
-    ExecuteValidateAuthOperation,
-    ExecuteValidateAuthResponse,
     BasicAuthConnectionValue,
-    SecretTextConnectionValue,
     CustomAuthConnectionValue,
     ExecuteExtractPieceMetadata,
     ExecutePropsOptions,
+    ExecuteValidateAuthOperation,
+    ExecuteValidateAuthResponse,
+    OAuth2ConnectionValueWithApp,
+    SecretTextConnectionValue,
 } from '@activepieces/shared'
 import { EngineConstants } from '../handler/context/engine-constants'
 import { FlowExecutorContext } from '../handler/context/flow-execution-context'
+import { createFlowsContext } from '../services/flows.service'
+import { createPropsResolver } from '../variables/props-resolver'
 import { pieceLoader } from './piece-loader'
-import { variableService } from '../services/variable-service'
 
 export const pieceHelper = {
-    async executeProps({ params, piecesSource, executionState, constants }: { executionState: FlowExecutorContext, params: ExecutePropsOptions, piecesSource: string, constants: EngineConstants }) {
+    async executeProps({ params, piecesSource, executionState, constants, searchValue }: { searchValue?: string, executionState: FlowExecutorContext, params: ExecutePropsOptions, piecesSource: string, constants: EngineConstants }) {
         const property = await pieceLoader.getPropOrThrow({
             params,
             piecesSource,
         })
 
         try {
-            const { resolvedInput } = await variableService({
+            const { resolvedInput } = await createPropsResolver({
+                apiUrl: constants.internalApiUrl,
                 projectId: params.projectId,
-                workerToken: params.workerToken,
+                engineToken: params.engineToken,
             }).resolve<
             StaticPropsValue<PiecePropertyMap>
             >({
@@ -40,15 +43,17 @@ export const pieceHelper = {
                 executionState,
             })
             const ctx = {
+                searchValue,
                 server: {
-                    token: params.workerToken,
-                    apiUrl: EngineConstants.API_URL,
-                    publicUrl: params.serverUrl,
+                    token: params.engineToken,
+                    apiUrl: constants.internalApiUrl,
+                    publicUrl: params.publicApiUrl,
                 },
                 project: {
                     id: params.projectId,
                     externalId: constants.externalProjectId,
                 },
+                flows: createFlowsContext(constants),
             }
 
             if (property.type === PropertyType.DYNAMIC) {
@@ -111,6 +116,12 @@ export const pieceHelper = {
                     auth: con.props,
                 })
             }
+            case PropertyType.OAUTH2: {
+                const con = params.auth as OAuth2ConnectionValueWithApp
+                return piece.auth.validate({
+                    auth: con,
+                })
+            }
             default: {
                 throw new Error('Invalid auth type')
             }
@@ -125,6 +136,7 @@ export const pieceHelper = {
             ...piece.metadata(),
             name: pieceName,
             version: pieceVersion,
+            authors: piece.authors,
         }
     },
 }

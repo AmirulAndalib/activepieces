@@ -2,9 +2,10 @@ import {
   AppConnectionValue,
   ExecutionType,
   FlowRunId,
-  PauseMetadata,
+  PopulatedFlow,
   ProjectId,
-  StopResponse,
+  ResumePayload,
+  SeekPage,
   TriggerPayload,
 } from '@activepieces/shared';
 import { TriggerStrategy } from './trigger/trigger';
@@ -14,11 +15,13 @@ import {
   StaticPropsValue,
 } from './property';
 import { PieceAuthProperty } from './property/authentication';
+import { StopResponse, DelayPauseMetadata, PauseMetadata, WebhookPauseMetadata } from '@activepieces/shared';
 
 type BaseContext<
   PieceAuth extends PieceAuthProperty,
   Props extends InputPropertyMap
 > = {
+  flows: FlowsContext;
   auth: PiecePropValueSchema<PieceAuth>;
   propsValue: StaticPropsValue<Props>;
   store: Store;
@@ -84,19 +87,27 @@ export type StopHookParams = {
   response: StopResponse;
 };
 
-export type StopHook = (params: StopHookParams) => void;
-
-type PauseMetadataWithoutResumeStepMetadata<T extends PauseMetadata> =
-  T extends PauseMetadata ? Omit<T, 'resumeStepMetadata'> : never;
-
-export type PauseHookPauseMetadata =
-  PauseMetadataWithoutResumeStepMetadata<PauseMetadata>;
+export type StopHook = (params?: StopHookParams) => void;
 
 export type PauseHookParams = {
-  pauseMetadata: PauseHookPauseMetadata;
+  pauseMetadata: PauseMetadata;
 };
 
-export type PauseHook = (params: PauseHookParams) => void;
+export type PauseHook = (params: {
+  pauseMetadata: DelayPauseMetadata | Omit<WebhookPauseMetadata, 'requestId'>
+}) => void;
+
+export type FlowsContext = {
+  list(): Promise<SeekPage<PopulatedFlow>>
+  current: {
+    id: string;
+    version: {
+      id: string;
+    };
+  };
+}
+
+
 
 export type PropertyContext = {
   server: ServerContext;
@@ -104,6 +115,8 @@ export type PropertyContext = {
     id: ProjectId;
     externalId: () => Promise<string | undefined>;
   };
+  searchValue?: string;
+  flows: FlowsContext;
 };
 
 export type ServerContext = {
@@ -111,6 +124,21 @@ export type ServerContext = {
   publicUrl: string;
   token: string;
 };
+
+export type RunContext = {
+  id: FlowRunId;
+  stop: StopHook;
+  pause: PauseHook;
+}
+
+export type OnStartContext<
+  PieceAuth extends PieceAuthProperty,
+  TriggerProps extends InputPropertyMap
+> = Omit<BaseContext<PieceAuth, TriggerProps>, 'flows'> & {
+   run: Pick<RunContext, 'id'>;
+   payload: unknown;
+}
+
 export type BaseActionContext<
   ET extends ExecutionType,
   PieceAuth extends PieceAuthProperty,
@@ -122,11 +150,10 @@ export type BaseActionContext<
   server: ServerContext;
   files: FilesService;
   serverUrl: string;
-  run: {
-    id: FlowRunId;
-    stop: StopHook;
-    pause: PauseHook;
-  };
+  run: RunContext;
+  generateResumeUrl: (params: {
+    queryParams: Record<string, string>
+  }) => string;
 };
 
 type BeginExecutionActionContext<
@@ -138,7 +165,7 @@ type ResumeExecutionActionContext<
   PieceAuth extends PieceAuthProperty = PieceAuthProperty,
   ActionProps extends InputPropertyMap = InputPropertyMap
 > = BaseActionContext<ExecutionType.RESUME, PieceAuth, ActionProps> & {
-  resumePayload: unknown;
+  resumePayload: ResumePayload;
 };
 
 export type ActionContext<

@@ -126,6 +126,7 @@ export const wordpressNewPost = createTrigger({
       auth: ctx.auth,
       store: ctx.store,
       propsValue: ctx.propsValue,
+      files: ctx.files,
     });
   },
   async onEnable(ctx) {
@@ -147,6 +148,7 @@ export const wordpressNewPost = createTrigger({
       auth: ctx.auth,
       store: ctx.store,
       propsValue: ctx.propsValue,
+      files: ctx.files,
     });
   },
 });
@@ -170,7 +172,7 @@ const getPosts = async (
   authors: string,
   startDate: number
 ) => {
-  //Wordpress accepts date only if they come after the start of the unix time stamp in 1970
+  //WordPress accepts date only if they come after the start of the unix time stamp in 1970
   let afterDate = dayjs(startDate).toISOString();
   if (startDate === 0) {
     afterDate = dayjs(startDate).add(1, 'day').toISOString();

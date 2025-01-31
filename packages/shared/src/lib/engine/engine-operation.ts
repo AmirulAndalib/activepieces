@@ -1,14 +1,15 @@
+import { Static, Type } from '@sinclair/typebox'
 import { AppConnectionValue } from '../app-connection/app-connection'
-import { FlowRunId } from '../flow-run/flow-run'
+import { ExecutionState, ExecutionType, ResumePayload } from '../flow-run/execution/execution-output'
+import { FlowRunId, RunEnvironment } from '../flow-run/flow-run'
 import { FlowVersion } from '../flows/flow-version'
-import { ProjectId } from '../project/project'
 import { PiecePackage } from '../pieces'
-import { ExecutionState, ExecutionType } from '../flow-run/execution/execution-output'
+import { PlatformId } from '../platform'
+import { ProjectId } from '../project/project'
 
 export enum EngineOperationType {
     EXTRACT_PIECE_METADATA = 'EXTRACT_PIECE_METADATA',
     EXECUTE_STEP = 'EXECUTE_STEP',
-    EXECUTE_TEST_FLOW = 'EXECUTE_TEST_FLOW',
     EXECUTE_FLOW = 'EXECUTE_FLOW',
     EXECUTE_PROPERTY = 'EXECUTE_PROPERTY',
     EXECUTE_TRIGGER_HOOK = 'EXECUTE_TRIGGER_HOOK',
@@ -34,12 +35,14 @@ export type EngineOperation =
 
 export type BaseEngineOperation = {
     projectId: ProjectId
-    workerToken: string
-    serverUrl: string
+    engineToken: string
+    internalApiUrl: string
+    publicApiUrl: string
 }
 
-export type ExecuteValidateAuthOperation = BaseEngineOperation & {
+export type ExecuteValidateAuthOperation = Omit<BaseEngineOperation, 'projectId'> & {
     piece: PiecePackage
+    platformId: PlatformId
     auth: AppConnectionValue
 }
 
@@ -48,20 +51,33 @@ export type ExecuteExtractPieceMetadata = PiecePackage
 export type ExecuteStepOperation = BaseEngineOperation &  {
     stepName: string
     flowVersion: FlowVersion
+    sampleData: Record<string, unknown>
 }
 
 export type ExecutePropsOptions = BaseEngineOperation & {
     piece: PiecePackage
     propertyName: string
-    stepName: string
+    actionOrTriggerName: string
     flowVersion: FlowVersion
     input: Record<string, unknown>
+    sampleData: Record<string, unknown>
+    searchValue?: string
 }
 
 type BaseExecuteFlowOperation<T extends ExecutionType> = BaseEngineOperation & {
     flowVersion: FlowVersion
     flowRunId: FlowRunId
     executionType: T
+    runEnvironment: RunEnvironment
+    serverHandlerId: string | null
+    httpRequestId: string | null
+    progressUpdateType: ProgressUpdateType
+}
+
+export enum ProgressUpdateType {
+    WEBHOOK_RESPONSE = 'WEBHOOK_RESPONSE',
+    TEST_FLOW = 'TEST_FLOW',
+    NONE = 'NONE',
 }
 
 export type BeginExecuteFlowOperation = BaseExecuteFlowOperation<ExecutionType.BEGIN> & {
@@ -69,30 +85,23 @@ export type BeginExecuteFlowOperation = BaseExecuteFlowOperation<ExecutionType.B
 }
 
 export type ResumeExecuteFlowOperation = BaseExecuteFlowOperation<ExecutionType.RESUME> & {
-    executionState: ExecutionState
     tasks: number
-    resumePayload: unknown
-}
+    resumePayload: ResumePayload
+} & ExecutionState
 
 export type ExecuteFlowOperation = BeginExecuteFlowOperation | ResumeExecuteFlowOperation
 
-export type EngineTestOperation = BeginExecuteFlowOperation & {
-    /**
-     * original flow version that the current test flow version is derived from.
-     * Used to generate the test execution context.
-     */
-    sourceFlowVersion: FlowVersion
-}
 
 export type ExecuteTriggerOperation<HT extends TriggerHookType> = BaseEngineOperation & {
     hookType: HT
+    test: boolean
     flowVersion: FlowVersion
     webhookUrl: string
     triggerPayload?: TriggerPayload
-    edition?: string
     appWebhookUrl?: string
     webhookSecret?: string
 }
+
 
 export type TriggerPayload<T = unknown> = {
     body: T
@@ -144,6 +153,14 @@ type ExecuteOnEnableTriggerResponse = {
     scheduleOptions?: ScheduleOptions
 }
 
+export const EngineHttpResponse = Type.Object({
+    status: Type.Number(),
+    body: Type.Unknown(),
+    headers: Type.Record(Type.String(), Type.String()),
+})
+
+export type EngineHttpResponse = Static<typeof EngineHttpResponse>
+
 export type ExecuteTriggerResponse<H extends TriggerHookType> = H extends TriggerHookType.RUN ? ExecuteTestOrRunTriggerResponse :
     H extends TriggerHookType.HANDSHAKE ? ExecuteHandshakeTriggerResponse :
         H extends TriggerHookType.TEST ? ExecuteTestOrRunTriggerResponse :
@@ -173,6 +190,7 @@ export type ExecuteValidateAuthResponse =
 export type ScheduleOptions = {
     cronExpression: string
     timezone: string
+    failureCount: number
 }
 
 export type EngineResponse<T> = {
@@ -184,4 +202,5 @@ export enum EngineResponseStatus {
     OK = 'OK',
     ERROR = 'ERROR',
     TIMEOUT = 'TIMEOUT',
+    MEMORY_ISSUE = 'MEMORY_ISSUE',
 }

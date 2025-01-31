@@ -14,6 +14,7 @@ import {
   CalendarList,
   GoogleCalendarEvent,
   GoogleCalendarEventList,
+  GetColorsResponse,
 } from './types';
 
 export async function stopWatchEvent(
@@ -83,8 +84,24 @@ export async function getCalendars(
   return response.body.items;
 }
 
+export async function getColors(
+  authProp: OAuth2PropertyValue
+): Promise<GetColorsResponse> {
+  const request: HttpRequest = {
+    method: HttpMethod.GET,
+    url: `${googleCalendarCommon.baseUrl}/colors`,
+    authentication: {
+      type: AuthenticationType.BEARER_TOKEN,
+      token: authProp.access_token,
+    },
+  };
+  const response = await httpClient.sendRequest<GetColorsResponse>(request);
+  return response.body;
+}
+
 export async function getEvents(
   calendarId: string,
+  expandRecurringEvent: boolean,
   authProp: OAuth2PropertyValue,
   minUpdated?: Date
 ): Promise<GoogleCalendarEvent[]> {
@@ -97,7 +114,7 @@ export async function getEvents(
     updatedMin: minUpdated?.toISOString() ?? yesterday.toISOString(),
     maxResults: '2500', // Modified
     orderBy: 'updated',
-    singleEvents: 'true',
+    singleEvents: expandRecurringEvent ? 'true' : 'false',
     showDeleted: 'true',
   };
 
@@ -131,7 +148,7 @@ export async function getLatestEvent(
   calendarId: string,
   authProp: OAuth2PropertyValue
 ): Promise<GoogleCalendarEvent> {
-  const eventList = await getEvents(calendarId, authProp);
+  const eventList = await getEvents(calendarId, false, authProp);
   const lastUpdatedEvent = eventList.pop()!; // You can retrieve the last updated event.
   return lastUpdatedEvent;
 }

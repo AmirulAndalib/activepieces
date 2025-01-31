@@ -1,14 +1,24 @@
 import {
   createAction,
   Property,
-  StoreScope,
 } from '@activepieces/pieces-framework';
+import { z } from 'zod';
+import { propsValidation } from '@activepieces/pieces-common';
 import deepEqual from 'deep-equal';
+import { common, getScopeAndKey } from './common';
 
 export const storageRemoveFromList = createAction({
   name: 'remove_from_list',
   displayName: 'Remove from List',
   description: 'Remove Item from a list',
+  errorHandlingOptions: {
+    continueOnFailure: {
+      hide: true,
+    },
+    retryOnFailure: {
+      hide: true,
+    },
+  },
   props: {
     key: Property.ShortText({
       displayName: 'Key',
@@ -18,30 +28,22 @@ export const storageRemoveFromList = createAction({
       displayName: 'Value',
       required: true,
     }),
-    store_scope: Property.StaticDropdown({
-      displayName: 'Store Scope',
-      description: 'The storage scope of the value.',
-      required: true,
-      options: {
-        options: [
-          {
-            label: 'Project',
-            value: StoreScope.PROJECT,
-          },
-          {
-            label: 'Flow',
-            value: StoreScope.FLOW,
-          },
-        ],
-      },
-      defaultValue: StoreScope.PROJECT,
-    }),
+    store_scope: common.store_scope,
   },
   async run(context) {
+    await propsValidation.validateZod(context.propsValue, {
+      key: z.string().max(128),
+    });
+
+    const { key, scope } = getScopeAndKey({
+      runId: context.run.id,
+      key: context.propsValue['key'],
+      scope: context.propsValue.store_scope,
+    });
     const items =
       (await context.store.get<unknown[]>(
-        context.propsValue['key'],
-        context.propsValue.store_scope
+        key,
+        scope,
       )) ?? [];
     if (!Array.isArray(items)) {
       throw new Error(`Key ${context.propsValue['key']} is not an array`);
@@ -50,9 +52,9 @@ export const storageRemoveFromList = createAction({
       if (deepEqual(items[i], context.propsValue['value'])) {
         items.splice(i, 1);
         return await context.store.put(
-          context.propsValue['key'],
+          key,
           items,
-          context.propsValue.store_scope
+          scope,
         );
       }
     }
@@ -60,9 +62,9 @@ export const storageRemoveFromList = createAction({
       items.splice(items.indexOf(context.propsValue['value']), 1);
     }
     return await context.store.put(
-      context.propsValue['key'],
+      key,
       items,
-      context.propsValue.store_scope
+      scope,
     );
   },
 });

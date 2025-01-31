@@ -35,10 +35,12 @@ export const freshsalesAuth = PieceAuth.BasicAuth({
 
 export const freshsales = createPiece({
   displayName: 'Freshsales',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Sales CRM software',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/freshsales.png',
   categories: [PieceCategory.SALES_AND_CRM],
-  authors: ['kanarelo'],
+  authors: ["kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   auth: freshsalesAuth,
   actions: [
     freshSalesCreateContact,
@@ -48,7 +50,7 @@ export const freshsales = createPiece({
           (auth as { username: string }).username
         }.myfreshworks.com/crm/sales/api`,
       auth: freshsalesAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Token token=${(auth as { password: string }).password}`,
       }),
     }),

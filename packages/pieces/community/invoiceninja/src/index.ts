@@ -12,6 +12,8 @@ import { getReport } from './lib/actions/get-report';
 import { existsTask } from './lib/actions/task-exists';
 import { createInvoice } from './lib/actions/create-invoice';
 import { createClient } from './lib/actions/create-client';
+import { createRecurringInvoice } from './lib/actions/create-recurring';
+import { actionRecurringInvoice } from './lib/actions/action-recurring';
 
 export const invoiceninjaAuth = PieceAuth.CustomAuth({
   props: {
@@ -33,10 +35,12 @@ export const invoiceninjaAuth = PieceAuth.CustomAuth({
 
 export const invoiceninja = createPiece({
   displayName: 'Invoice Ninja',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Free open-source invoicing tool',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/invoiceninja.png',
   categories: [PieceCategory.ACCOUNTING],
-  authors: ['buttonsbond'],
+  authors: ["buttonsbond","kishanprmr","MoShizzle","AbdulTheActivePiecer","khaledmashaly","abuaboud"],
   auth: invoiceninjaAuth,
   actions: [
     createTask,
@@ -46,11 +50,13 @@ export const invoiceninja = createPiece({
     getReport,
     createInvoice,
     createClient,
+    createRecurringInvoice,
+    actionRecurringInvoice,
     createCustomApiCallAction({
       baseUrl: (auth) =>
         `${(auth as { base_url: string }).base_url.replace(/\/$/, '')}/api/v1`,
       auth: invoiceninjaAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         'X-Api-Token': (auth as { access_token: string }).access_token,
       }),
     }),

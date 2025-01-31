@@ -7,6 +7,7 @@ import {
   slackChannel,
   username,
   actions,
+  singleSelectChannelInfo,
 } from '../common/props';
 import { requestAction } from '../common/request-action';
 
@@ -17,7 +18,8 @@ export const requestActionMessageAction = createAction({
   description:
     'Send a message in a channel and wait until an action is selected',
   props: {
-    channel: slackChannel,
+    info: singleSelectChannelInfo,
+    channel: slackChannel(true),
     text,
     actions,
     username,

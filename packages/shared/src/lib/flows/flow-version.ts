@@ -1,9 +1,12 @@
+import { Static, Type } from '@sinclair/typebox'
 import { BaseModelSchema, Nullable } from '../common/base-model'
 import { ApId } from '../common/id-generator'
+import { UserWithMetaInformation } from '../user'
 import { Trigger } from './triggers/trigger'
-import { Static, Type } from '@sinclair/typebox'
 
 export type FlowVersionId = ApId
+
+export const LATEST_SCHEMA_VERSION = '1'
 
 export enum FlowVersionState {
     LOCKED = 'LOCKED',
@@ -17,6 +20,7 @@ export const FlowVersion = Type.Object({
     trigger: Trigger,
     updatedBy: Nullable(Type.String()),
     valid: Type.Boolean(),
+    schemaVersion: Nullable(Type.String()),
     state: Type.Enum(FlowVersionState),
 })
 
@@ -28,6 +32,9 @@ export const FlowVersionMetadata = Type.Object({
     displayName: Type.String(),
     valid: Type.Boolean(),
     state: Type.Enum(FlowVersionState),
+    updatedBy: Nullable(Type.String()),
+    schemaVersion: Nullable(Type.String()),
+    updatedByUser: Nullable(UserWithMetaInformation),
 })
 
 export type FlowVersionMetadata = Static<typeof FlowVersionMetadata>

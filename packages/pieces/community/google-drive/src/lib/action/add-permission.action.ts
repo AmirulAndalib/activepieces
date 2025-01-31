@@ -1,4 +1,4 @@
-import { Property, Validators, createAction } from "@activepieces/pieces-framework";
+import { Property, createAction } from "@activepieces/pieces-framework";
 import { googleDriveAuth } from "../../";
 import { google } from 'googleapis';
 import { OAuth2Client } from 'googleapis-common';
@@ -16,10 +16,9 @@ export const addPermission = createAction({
         }),
         user_email: Property.ShortText({
             displayName: 'User email',
-            validators: [Validators.email],
             description: 'The email address of the user to update permissions for',
             required: true,
-        }),        
+        }),
         permission_name : Property.StaticDropdown({
             displayName: 'Role',
             description: 'The role to grant to user. See more at: https://developers.google.com/drive/api/guides/ref-roles',
@@ -46,7 +45,7 @@ export const addPermission = createAction({
                     label: 'Reader',
                     value: 'reader',
                 },
-                
+
             ]
             }
         }),
@@ -55,7 +54,7 @@ export const addPermission = createAction({
             description: 'Send an email to the user to notify them of the new permissions',
             required: true,
         }),
-        
+
        },
 
     async run(context) {
@@ -73,7 +72,7 @@ export const addPermission = createAction({
             fileId: fileId,
             sendNotificationEmail: send_invitation_email
         });
-        
+
         return result.data;
     }
 });

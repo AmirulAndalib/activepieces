@@ -20,16 +20,18 @@ export const boxAuth = PieceAuth.OAuth2({
 
 export const box = createPiece({
   displayName: 'Box',
+  description: 'Secure content management and collaboration',
+
   auth: boxAuth,
-  minimumSupportedRelease: '0.5.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/box.png',
   categories: [PieceCategory.CONTENT_AND_FILES],
-  authors: ['kanarelo', 'MoShizzle'],
+  authors: ["kishanprmr","MoShizzle","abuaboud"],
   actions: [
     createCustomApiCallAction({
       baseUrl: () => common.baseUrl,
       auth: boxAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${(auth as OAuth2PropertyValue).access_token}`,
       }),
     }),

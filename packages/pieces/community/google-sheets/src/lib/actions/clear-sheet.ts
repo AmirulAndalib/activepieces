@@ -26,11 +26,13 @@ export const clearSheetAction = createAction({
     );
 
     const rowsToDelete: number[] = [];
-    const values = await googleSheetsCommon.getValues(
-      propsValue.spreadsheet_id,
-      auth['access_token'],
-      propsValue.sheet_id
-    );
+    const values = await googleSheetsCommon.getGoogleSheetRows({
+      spreadsheetId: propsValue.spreadsheet_id,
+      accessToken: auth['access_token'],
+      sheetId: propsValue.sheet_id,
+      rowIndex_s: 1,
+      rowIndex_e: undefined,
+    });
     for (const key in values) {
       if (key === '0' && propsValue.is_first_row_headers) {
         continue;
@@ -38,18 +40,14 @@ export const clearSheetAction = createAction({
       rowsToDelete.push(parseInt(key) + 1);
     }
 
-    for (let i = 0; i < rowsToDelete.length; i++) {
-      await googleSheetsCommon.clearSheet(
-        propsValue.spreadsheet_id,
-        propsValue.sheet_id,
-        auth['access_token'],
-        propsValue.is_first_row_headers ? 1 : 0,
-        rowsToDelete.length
-      );
-    }
+    const response = await googleSheetsCommon.clearSheet(
+      propsValue.spreadsheet_id,
+      propsValue.sheet_id,
+      auth['access_token'],
+      propsValue.is_first_row_headers ? 1 : 0,
+      rowsToDelete.length
+    );
 
-    return {
-      deletedRow: rowsToDelete,
-    };
+    return response.body;
   },
 });

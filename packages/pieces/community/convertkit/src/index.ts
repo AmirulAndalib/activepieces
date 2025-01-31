@@ -35,7 +35,7 @@ import {
 import {
   addSubscriberToSequence,
   listSequences,
-  listSupscriptionsToSequence,
+  listSubscriptionsToSequence,
 } from './lib/actions/sequences';
 
 import {
@@ -78,11 +78,13 @@ export const convertkitAuth = PieceAuth.SecretText({
 
 export const convertkit = createPiece({
   displayName: 'ConvertKit',
+  description: 'Email marketing for creators',
+
   auth: convertkitAuth,
-  minimumSupportedRelease: '0.5.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/convertkit.png',
   categories: [PieceCategory.MARKETING],
-  authors: [],
+  authors: ["Gunther-Schulz","kishanprmr","abuaboud"],
   actions: [
     getSubscriberById,
     getSubscriberByEmail,
@@ -108,7 +110,7 @@ export const convertkit = createPiece({
     listFormSubscriptions,
     listSequences,
     addSubscriberToSequence,
-    listSupscriptionsToSequence,
+    listSubscriptionsToSequence,
     listTags,
     createTag,
     tagSubscriber,

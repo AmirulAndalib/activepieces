@@ -1,18 +1,20 @@
-import { AppConnectionId } from '../app-connection/app-connection'
-import { FileId } from '../file/file'
+import { FileId } from '../file'
 import { FlowRunId } from '../flow-run/flow-run'
 import { FlowId } from '../flows/flow'
 import { FlowVersionId } from '../flows/flow-version'
+import { ProjectId } from '../project'
+import { ProjectRole } from '../project-role/project-role'
+import { UserId } from '../user'
 import { ApId } from './id-generator'
+import { Permission } from './security'
 
 export class ActivepiecesError extends Error {
-    constructor(public error: ErrorParams, message?: string) {
+    constructor(public error: ApErrorParams, message?: string) {
         super(error.code + (message ? `: ${message}` : ''))
     }
 }
 
-type ErrorParams =
-    | AppConnectionNotFoundErrorParams
+export type ApErrorParams =
     | AuthenticationParams
     | AuthorizationErrorParams
     | ConfigNotFoundErrorParams
@@ -22,7 +24,9 @@ type ErrorParams =
     | ExecutionTimeoutErrorParams
     | ExistingUserErrorParams
     | FileNotFoundErrorParams
+    | FlowFormNotFoundError
     | FlowNotFoundErrorParams
+    | FlowIsLockedErrorParams
     | FlowOperationErrorParams
     | FlowRunNotFoundErrorParams
     | InvalidApiKeyParams
@@ -33,6 +37,7 @@ type ErrorParams =
     | InvalidCredentialsErrorParams
     | InvalidJwtTokenErrorParams
     | InvalidOtpParams
+    | InvalidSAMLResponseParams
     | InvitationOnlySignUpParams
     | JobRemovalFailureErrorParams
     | OpenAiFailedErrorParams
@@ -41,6 +46,7 @@ type ErrorParams =
     | PieceNotFoundErrorParams
     | PieceTriggerNotFoundErrorParams
     | QuotaExceededParams
+    | FeatureDisabledErrorParams
     | SignUpDisabledParams
     | StepNotFoundErrorParams
     | SystemInvalidErrorParams
@@ -54,15 +60,34 @@ type ErrorParams =
     | UserIsInActiveErrorParams
     | DomainIsNotAllowedErrorParams
     | EmailAuthIsDisabledParams
-
+    | ExistingAlertChannelErrorParams
+    | EmailAlreadyHasActivationKey
+    | ProviderProxyConfigNotFoundParams
+    | AITokenLimitExceededParams
+    | SessionExpiredParams
+    | InvalidLicenseKeyParams
+    | NoChatResponseParams
+    | InvalidSmtpCredentialsErrorParams
+    | InvalidGitCredentialsParams
+    | InvalidReleaseTypeParams
+    | CopilotFailedErrorParams
+    | ProjectExternalIdAlreadyExistsParams
+    | MemoryIssueParams
+    | InvalidCustomDomainErrorParams
 export type BaseErrorParams<T, V> = {
     code: T
     params: V
 }
 
+export type MemoryIssueParams = BaseErrorParams<ErrorCode.MEMORY_ISSUE, {
+    message?: string
+}>
+
 export type InvitationOnlySignUpParams = BaseErrorParams<
 ErrorCode.INVITATION_ONLY_SIGN_UP,
-Record<string, never>
+{
+    message?: string
+}
 >
 
 export type InvalidClaimParams = BaseErrorParams<ErrorCode.INVALID_CLAIM, { redirectUrl: string, tokenUrl: string, clientId: string }>
@@ -72,30 +97,36 @@ export type InvalidBearerTokenParams = BaseErrorParams<ErrorCode.INVALID_BEARER_
     message?: string
 }>
 
+export type SessionExpiredParams = BaseErrorParams<ErrorCode.SESSION_EXPIRED, {
+    message?: string
+}>
+
+export type NoChatResponseParams = BaseErrorParams<ErrorCode.NO_CHAT_RESPONSE, Record<string, never>>
+
 export type FileNotFoundErrorParams = BaseErrorParams<ErrorCode.FILE_NOT_FOUND, { id: FileId }>
 
 export type EmailAuthIsDisabledParams = BaseErrorParams<ErrorCode.EMAIL_AUTH_DISABLED, Record<string, never>>
 
-export type AppConnectionNotFoundErrorParams = BaseErrorParams<
-ErrorCode.APP_CONNECTION_NOT_FOUND,
-{
-    id: AppConnectionId
-}
->
-
 export type AuthorizationErrorParams = BaseErrorParams<
 ErrorCode.AUTHORIZATION,
+Record<string, string> &
 {
     message?: string
 }
 >
 
+export type AITokenLimitExceededParams = BaseErrorParams<ErrorCode.AI_TOKEN_LIMIT_EXCEEDED, {
+    usage: number
+    limit: number
+}> 
+
 export type PermissionDeniedErrorParams = BaseErrorParams<
 ErrorCode.PERMISSION_DENIED,
 {
-    resource: string
-    action: string
-    projectId: string
+    userId: UserId
+    projectId: ProjectId
+    projectRole: ProjectRole | null
+    permission: Permission | undefined
 }
 >
 
@@ -168,6 +199,7 @@ ErrorCode.PIECE_NOT_FOUND,
 {
     pieceName: string
     pieceVersion: string | undefined
+    message: string
 }
 >
 
@@ -176,7 +208,7 @@ ErrorCode.PIECE_TRIGGER_NOT_FOUND,
 {
     pieceName: string
     pieceVersion: string
-    triggerName: string
+    triggerName: string | undefined
 }
 >
 
@@ -204,7 +236,7 @@ ErrorCode.CONFIG_NOT_FOUND,
 export type JobRemovalFailureErrorParams = BaseErrorParams<
 ErrorCode.JOB_REMOVAL_FAILURE,
 {
-    jobId: ApId
+    flowVersionId: ApId
 }
 >
 
@@ -222,8 +254,24 @@ Record<string, never>
 
 export type FlowOperationErrorParams = BaseErrorParams<
 ErrorCode.FLOW_OPERATION_INVALID,
-Record<string, never>
+{
+    message: string
+}
 >
+
+export type FlowFormNotFoundError = BaseErrorParams<
+ErrorCode.FLOW_FORM_NOT_FOUND,
+{
+    flowId: FlowVersionId
+    message: string
+}>
+
+export type FlowIsLockedErrorParams = BaseErrorParams<
+ErrorCode.FLOW_IN_USE,
+{
+    flowVersionId: FlowVersionId
+    message: string
+}>
 
 export type InvalidJwtTokenErrorParams = BaseErrorParams<
 ErrorCode.INVALID_OR_EXPIRED_JWT_TOKEN,
@@ -245,6 +293,13 @@ ErrorCode.ENTITY_NOT_FOUND,
     message?: string
     entityType?: string
     entityId?: string
+}
+>
+
+export type InvalidCustomDomainErrorParams = BaseErrorParams<
+ErrorCode.INVALID_CUSTOM_DOMAIN,
+{
+    message: string
 }
 >
 
@@ -288,6 +343,7 @@ export type EngineOperationFailureParams = BaseErrorParams<
 ErrorCode.ENGINE_OPERATION_FAILURE,
 {
     message: string
+    context?: unknown
 }
 >
 
@@ -301,10 +357,22 @@ ErrorCode.INVALID_APP_CONNECTION,
 export type QuotaExceededParams = BaseErrorParams<
 ErrorCode.QUOTA_EXCEEDED,
 {
-    metric: 'connections' | 'tasks' | 'bots' | 'datasource' | 'team-members'
-    quota: number
+    metric: 'tasks' | 'team-members' | 'ai-tokens'
+    quota?: number
 }
 >
+
+export type ProviderProxyConfigNotFoundParams = BaseErrorParams<
+ErrorCode.PROVIDER_PROXY_CONFIG_NOT_FOUND_FOR_PROVIDER,
+{
+    provider: string
+}>
+
+export type FeatureDisabledErrorParams = BaseErrorParams<
+ErrorCode.FEATURE_DISABLED,
+{
+    message: string
+}>
 
 export type SignUpDisabledParams = BaseErrorParams<
 ErrorCode.SIGN_UP_DISABLED,
@@ -318,33 +386,84 @@ ErrorCode.AUTHENTICATION,
 }
 >
 
+export type InvalidSAMLResponseParams = BaseErrorParams<
+ErrorCode.INVALID_SAML_RESPONSE,
+{
+    message: string
+}
+>
+
+export type ExistingAlertChannelErrorParams = BaseErrorParams<
+ErrorCode.EXISTING_ALERT_CHANNEL,
+{
+    email: string
+}
+>
+
 export type InvalidOtpParams = BaseErrorParams<ErrorCode.INVALID_OTP, Record<string, never>>
 
+export type InvalidLicenseKeyParams = BaseErrorParams<ErrorCode.INVALID_LICENSE_KEY, {
+    key: string
+}>  
+
+export type EmailAlreadyHasActivationKey = BaseErrorParams<ErrorCode.EMAIL_ALREADY_HAS_ACTIVATION_KEY, {
+    email: string
+}>
+
+export type InvalidSmtpCredentialsErrorParams = BaseErrorParams<ErrorCode.INVALID_SMTP_CREDENTIALS, {
+    message: string
+}>  
+
+export type InvalidGitCredentialsParams = BaseErrorParams<ErrorCode.INVALID_GIT_CREDENTIALS, {
+    message: string
+}>
+
+export type InvalidReleaseTypeParams = BaseErrorParams<ErrorCode.INVALID_RELEASE_TYPE, {
+    message: string
+}>
+
+export type CopilotFailedErrorParams = BaseErrorParams<ErrorCode.COPILOT_FAILED, {
+    message: string
+}>
+
+export type ProjectExternalIdAlreadyExistsParams = BaseErrorParams<ErrorCode.PROJECT_EXTERNAL_ID_ALREADY_EXISTS, {
+    externalId: string
+}>
+
 export enum ErrorCode {
-    APP_CONNECTION_NOT_FOUND = 'APP_CONNECTION_NOT_FOUND',
+    INVALID_CUSTOM_DOMAIN = 'INVALID_CUSTOM_DOMAIN',
+    NO_CHAT_RESPONSE = 'NO_CHAT_RESPONSE',
     AUTHENTICATION = 'AUTHENTICATION',
     AUTHORIZATION = 'AUTHORIZATION',
+    PROVIDER_PROXY_CONFIG_NOT_FOUND_FOR_PROVIDER = 'PROVIDER_PROXY_CONFIG_NOT_FOUND_FOR_PROVIDER',
     CONFIG_NOT_FOUND = 'CONFIG_NOT_FOUND',
     DOMAIN_NOT_ALLOWED = 'DOMAIN_NOT_ALLOWED',
     EMAIL_IS_NOT_VERIFIED = 'EMAIL_IS_NOT_VERIFIED',
     ENGINE_OPERATION_FAILURE = 'ENGINE_OPERATION_FAILURE',
     ENTITY_NOT_FOUND = 'ENTITY_NOT_FOUND',
     EXECUTION_TIMEOUT = 'EXECUTION_TIMEOUT',
+    MEMORY_ISSUE = 'MEMORY_ISSUE',
     EMAIL_AUTH_DISABLED = 'EMAIL_AUTH_DISABLED',
     EXISTING_USER = 'EXISTING_USER',
+    EXISTING_ALERT_CHANNEL = 'EXISTING_ALERT_CHANNEL',
+    PROJECT_EXTERNAL_ID_ALREADY_EXISTS = 'PROJECT_EXTERNAL_ID_ALREADY_EXISTS',
+    FLOW_FORM_NOT_FOUND = 'FLOW_FORM_NOT_FOUND',
     FILE_NOT_FOUND = 'FILE_NOT_FOUND',
     FLOW_INSTANCE_NOT_FOUND = 'INSTANCE_NOT_FOUND',
     FLOW_NOT_FOUND = 'FLOW_NOT_FOUND',
     FLOW_OPERATION_INVALID = 'FLOW_OPERATION_INVALID',
+    FLOW_IN_USE = 'FLOW_IN_USE',
     FLOW_RUN_NOT_FOUND = 'FLOW_RUN_NOT_FOUND',
     INVALID_API_KEY = 'INVALID_API_KEY',
     INVALID_APP_CONNECTION = 'INVALID_APP_CONNECTION',
     INVALID_BEARER_TOKEN = 'INVALID_BEARER_TOKEN',
+    SESSION_EXPIRED = 'SESSION_EXPIRED',
     INVALID_CLAIM = 'INVALID_CLAIM',
     INVALID_CLOUD_CLAIM = 'INVALID_CLOUD_CLAIM',
     INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
     INVALID_OR_EXPIRED_JWT_TOKEN = 'INVALID_OR_EXPIRED_JWT_TOKEN',
     INVALID_OTP = 'INVALID_OTP',
+    INVALID_SAML_RESPONSE = 'INVALID_SAML_RESPONSE',
     INVITATION_ONLY_SIGN_UP = 'INVITATION_ONLY_SIGN_UP',
     JOB_REMOVAL_FAILURE = 'JOB_REMOVAL_FAILURE',
     OPEN_AI_FAILED = 'OPEN_AI_FAILED',
@@ -353,6 +472,8 @@ export enum ErrorCode {
     PIECE_NOT_FOUND = 'PIECE_NOT_FOUND',
     PIECE_TRIGGER_NOT_FOUND = 'PIECE_TRIGGER_NOT_FOUND',
     QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
+    FEATURE_DISABLED = 'FEATURE_DISABLED',
+    AI_TOKEN_LIMIT_EXCEEDED = 'AI_TOKEN_LIMIT_EXCEEDED',
     SIGN_UP_DISABLED = 'SIGN_UP_DISABLED',
     STEP_NOT_FOUND = 'STEP_NOT_FOUND',
     SYSTEM_PROP_INVALID = 'SYSTEM_PROP_INVALID',
@@ -363,4 +484,10 @@ export enum ErrorCode {
     TRIGGER_FAILED = 'TRIGGER_FAILED',
     USER_IS_INACTIVE = 'USER_IS_INACTIVE',
     VALIDATION = 'VALIDATION',
+    INVALID_LICENSE_KEY = 'INVALID_LICENSE_KEY',
+    EMAIL_ALREADY_HAS_ACTIVATION_KEY = 'EMAIL_ALREADY_HAS_ACTIVATION_KEY',
+    INVALID_SMTP_CREDENTIALS = 'INVALID_SMTP_CREDENTIALS',
+    INVALID_GIT_CREDENTIALS = 'INVALID_GIT_CREDENTIALS',
+    INVALID_RELEASE_TYPE = 'INVALID_RELEASE_TYPE',
+    COPILOT_FAILED = 'COPILOT_FAILED',
 }

@@ -1,8 +1,11 @@
 import { Static, Type } from '@sinclair/typebox'
+import { STORE_KEY_MAX_LENGTH } from '../store-entry'
 
 export const PutStoreEntryRequest = Type.Object({
-    key: Type.String({}),
-    value: Type.Any({}),
+    key: Type.String({
+        maxLength: STORE_KEY_MAX_LENGTH,
+    }),
+    value: Type.Optional(Type.Any({})),
 })
 
 export type PutStoreEntryRequest = Static<typeof PutStoreEntryRequest>
@@ -13,8 +16,8 @@ export const GetStoreEntryRequest = Type.Object({
 
 export type GetStoreEntryRequest = Static<typeof GetStoreEntryRequest>
 
-export const DeletStoreEntryRequest = Type.Object({
+export const DeleteStoreEntryRequest = Type.Object({
     key: Type.String({}),
 })
 
-export type DeletStoreEntryRequest = Static<typeof DeletStoreEntryRequest>
+export type DeleteStoreEntryRequest = Static<typeof DeleteStoreEntryRequest>

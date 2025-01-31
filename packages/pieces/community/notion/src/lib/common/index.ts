@@ -98,12 +98,12 @@ export const notionCommon = {
         const { properties } = await notion.databases.retrieve({
           database_id: database_id as unknown as string,
         });
-
         for (const key in properties) {
           const property = properties[key];
           if (
             [
               'rollup',
+              'button',
               'files',
               'verification',
               'formula',
@@ -140,6 +140,60 @@ export const notionCommon = {
             fields[property.name] =
               NotionFieldMapping[property.type].buildActivepieceType(property);
           }
+        }
+      } catch (e) {
+        console.debug(e);
+      }
+      return fields;
+    },
+  }),
+  filterDatabaseFields: Property.DynamicProperties({
+    displayName: 'Fields',
+    required: true,
+    refreshers: ['database_id'],
+    props: async ({ auth, database_id }) => {
+      if (!auth || !database_id) {
+        return {
+          disabled: true,
+          placeholder:
+            'Please connect your Notion account first and select database',
+          options: [],
+        };
+      }
+      const fields: DynamicPropsValue = {};
+      try {
+        const notion = new Client({
+          auth: (auth as OAuth2PropertyValue).access_token,
+          notionVersion: '2022-02-22',
+        });
+        const { properties } = await notion.databases.retrieve({
+          database_id: database_id as unknown as string,
+        });
+
+        for (const key in properties) {
+          const property = properties[key];
+          if (
+            [
+              'rollup',
+              'button',
+              'files',
+              'verification',
+              'status',
+              'multi_select',
+              'formula',
+              'unique_id',
+              'relation',
+              'checkbox',
+              'created_by',
+              'created_time',
+              'last_edited_by',
+              'last_edited_time',
+            ].includes(property.type)
+          ) {
+            continue;
+          }
+          fields[property.name] =
+            NotionFieldMapping[property.type].buildActivepieceType(property);
         }
       } catch (e) {
         console.debug(e);

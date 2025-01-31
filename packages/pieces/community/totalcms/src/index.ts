@@ -21,11 +21,12 @@ import { newBlogPost } from './lib/triggers/new-blog-post';
 
 export const totalcms = createPiece({
   displayName: 'Total CMS',
+  description: 'Content management system for modern websites',
   auth: cmsAuth,
-  minimumSupportedRelease: '0.9.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/totalcms.png',
   categories: [PieceCategory.MARKETING],
-  authors: ['joeworkman'],
+  authors: ["joeworkman","kishanprmr","MoShizzle","abuaboud"],
   actions: [
     getContentAction,
     getBlogPostAction,
@@ -43,7 +44,7 @@ export const totalcms = createPiece({
     createCustomApiCallAction({
       baseUrl: (auth) => (auth as { domain: string }).domain,
       auth: cmsAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         'total-key': (auth as { license: string }).license,
       }),
     }),

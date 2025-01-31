@@ -6,6 +6,8 @@ import {
 import OpenAI from 'openai';
 import { openaiAuth } from '../..';
 import { sleep } from '../common/common';
+import { z } from 'zod';
+import { propsValidation } from '@activepieces/pieces-common';
 
 export const askAssistant = createAction({
   auth: openaiAuth,
@@ -62,6 +64,10 @@ export const askAssistant = createAction({
     }),
   },
   async run({ auth, propsValue, store }) {
+    await propsValidation.validateZod(propsValue, {
+      memoryKey: z.string().max(128).optional(),
+    });
+
     const openai = new OpenAI({
       apiKey: auth,
     });

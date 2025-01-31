@@ -1,12 +1,14 @@
-import { AUTHENTICATION_PROPERTY_NAME, ApEdition, EventPayload, ExecuteTriggerOperation, ExecuteTriggerResponse, PieceTrigger, ScheduleOptions, TriggerHookType, assertEqual } from '@activepieces/shared'
-import { createContextStore } from '../services/storage.service'
-import { variableService } from '../services/variable-service'
-import { isValidCron } from 'cron-validator'
 import { PiecePropertyMap, StaticPropsValue, TriggerStrategy } from '@activepieces/pieces-framework'
-import { createFilesService } from '../services/files.service'
-import { FlowExecutorContext } from '../handler/context/flow-execution-context'
-import { pieceLoader } from './piece-loader'
+import { assertEqual, assertNotNullOrUndefined, AUTHENTICATION_PROPERTY_NAME, EventPayload, ExecuteTriggerOperation, ExecuteTriggerResponse, isNil, PieceTrigger, ScheduleOptions, Trigger, TriggerHookType } from '@activepieces/shared'
+import { isValidCron } from 'cron-validator'
 import { EngineConstants } from '../handler/context/engine-constants'
+import { FlowExecutorContext } from '../handler/context/flow-execution-context'
+import { createFlowsContext } from '../services/flows.service'
+import { createFilesService } from '../services/step-files.service'
+import { createContextStore } from '../services/storage.service'
+import { propsProcessor } from '../variables/props-processor'
+import { createPropsResolver } from '../variables/props-resolver'
+import { pieceLoader } from './piece-loader'
 
 type Listener = {
     events: string[]
@@ -15,41 +17,69 @@ type Listener = {
 }
 
 export const triggerHelper = {
+    async executeOnStart(trigger: Trigger, constants: EngineConstants, payload: unknown) {
+        const { pieceName, pieceVersion, triggerName, input } = (trigger as PieceTrigger).settings
+        assertNotNullOrUndefined(triggerName, 'triggerName is required')
+        const { pieceTrigger, processedInput } = await prepareTriggerExecution({
+            pieceName,
+            pieceVersion,
+            triggerName,
+            input,
+            projectId: constants.projectId,
+            apiUrl: constants.internalApiUrl,
+            engineToken: constants.engineToken,
+            piecesSource: constants.piecesSource,
+        })
+        const isOldVersionOrNotSupported = isNil(pieceTrigger.onStart)
+        if (isOldVersionOrNotSupported) {
+            return
+        }
+        const context = {
+            store: createContextStore({
+                apiUrl: constants.internalApiUrl,
+                prefix: '',
+                flowId: constants.flowId,
+                engineToken: constants.engineToken,
+            }),
+            auth: processedInput[AUTHENTICATION_PROPERTY_NAME],
+            propsValue: processedInput,
+            payload,
+            run: {
+                id: constants.flowRunId,
+            },
+            project: {
+                id: constants.projectId,
+                externalId: constants.externalProjectId,
+            },
+        }
+
+        await pieceTrigger.onStart(context)
+    },
+
     async executeTrigger({ params, constants }: ExecuteTriggerParams): Promise<ExecuteTriggerResponse<TriggerHookType>> {
         const { pieceName, pieceVersion, triggerName, input } = (params.flowVersion.trigger as PieceTrigger).settings
+        assertNotNullOrUndefined(triggerName, 'triggerName is required')
 
-        const piece = await pieceLoader.loadPieceOrThrow({ pieceName, pieceVersion, piecesSource: constants.piecesSource })
-        const trigger = piece.getTrigger(triggerName)
-
-        if (trigger === undefined) {
-            throw new Error(`trigger not found, pieceName=${pieceName}, triggerName=${triggerName}`)
-        }
-
-        const { resolvedInput } = await variableService({
+        const { piece, pieceTrigger, processedInput } = await prepareTriggerExecution({
+            pieceName,
+            pieceVersion,
+            triggerName,
+            input,
             projectId: params.projectId,
-            workerToken: params.workerToken,
-        }).resolve<StaticPropsValue<PiecePropertyMap>>({
-            unresolvedInput: input,
-            executionState: FlowExecutorContext.empty(),
+            apiUrl: constants.internalApiUrl,
+            engineToken: params.engineToken,
+            piecesSource: constants.piecesSource,
         })
 
-        const { processedInput, errors } = await variableService({
-            projectId: params.projectId,
-            workerToken: params.workerToken,
-        }).applyProcessorsAndValidators(resolvedInput, trigger.props, piece.auth)
-
-        if (Object.keys(errors).length > 0) {
-            throw new Error(JSON.stringify(errors))
-        }
-
         const appListeners: Listener[] = []
-        const prefix = (params.hookType === TriggerHookType.TEST) ? 'test' : ''
+        const prefix = params.test ? 'test' : ''
         let scheduleOptions: ScheduleOptions | undefined = undefined
         const context = {
             store: createContextStore({
+                apiUrl: constants.internalApiUrl,
                 prefix,
                 flowId: params.flowVersion.flowId,
-                workerToken: params.workerToken,
+                engineToken: params.engineToken,
             }),
             app: {
                 createListeners({ events, identifierKey, identifierValue }: Listener): void {
@@ -63,8 +93,15 @@ export const triggerHelper = {
                 scheduleOptions = {
                     cronExpression: request.cronExpression,
                     timezone: request.timezone ?? 'UTC',
+                    failureCount: request.failureCount ?? 0,
                 }
             },
+            flows: createFlowsContext({
+                engineToken: params.engineToken,
+                internalApiUrl: constants.internalApiUrl,
+                flowId: params.flowVersion.flowId,
+                flowVersionId: params.flowVersion.id,
+            }),
             webhookUrl: params.webhookUrl,
             auth: processedInput[AUTHENTICATION_PROPERTY_NAME],
             propsValue: processedInput,
@@ -76,23 +113,23 @@ export const triggerHelper = {
         }
         switch (params.hookType) {
             case TriggerHookType.ON_DISABLE:
-                await trigger.onDisable(context)
+                await pieceTrigger.onDisable(context)
                 return {}
             case TriggerHookType.ON_ENABLE:
-                await trigger.onEnable(context)
+                await pieceTrigger.onEnable(context)
                 return {
                     listeners: appListeners,
-                    scheduleOptions: trigger.type === TriggerStrategy.POLLING ? scheduleOptions : undefined,
+                    scheduleOptions: pieceTrigger.type === TriggerStrategy.POLLING ? scheduleOptions : undefined,
                 }
             case TriggerHookType.RENEW:
-                assertEqual(trigger.type, TriggerStrategy.WEBHOOK, 'triggerType', 'WEBHOOK')
-                await trigger.onRenew(context)
+                assertEqual(pieceTrigger.type, TriggerStrategy.WEBHOOK, 'triggerType', 'WEBHOOK')
+                await pieceTrigger.onRenew(context)
                 return {
                     success: true,
                 }
             case TriggerHookType.HANDSHAKE: {
                 try {
-                    const response = await trigger.onHandshake(context)
+                    const response = await pieceTrigger.onHandshake(context)
                     return {
                         success: true,
                         response,
@@ -111,13 +148,13 @@ export const triggerHelper = {
                 try {
                     return {
                         success: true,
-                        output: await trigger.test({
+                        output: await pieceTrigger.test({
                             ...context,
                             files: createFilesService({
-                                workerToken: params.workerToken!,
+                                apiUrl: constants.internalApiUrl,
+                                engineToken: params.engineToken!,
                                 stepName: triggerName,
                                 flowId: params.flowVersion.flowId,
-                                type: 'db',
                             }),
                         }),
                     }
@@ -132,20 +169,12 @@ export const triggerHelper = {
                     }
                 }
             case TriggerHookType.RUN: {
-                if (trigger.type === TriggerStrategy.APP_WEBHOOK) {
-                    if (params.edition === ApEdition.COMMUNITY) {
-                        return {
-                            success: false,
-                            message: 'App webhooks are not supported in community edition',
-                            output: [],
-                        }
-                    }
-
+                if (pieceTrigger.type === TriggerStrategy.APP_WEBHOOK) {
                     if (!params.appWebhookUrl) {
-                        throw new Error(`App webhook url is not avaiable for piece name ${pieceName}`)
+                        throw new Error(`App webhook url is not available for piece name ${pieceName}`)
                     }
                     if (!params.webhookSecret) {
-                        throw new Error(`Webhook secret is not avaiable for piece name ${pieceName}`)
+                        throw new Error(`Webhook secret is not available for piece name ${pieceName}`)
                     }
 
                     try {
@@ -173,13 +202,13 @@ export const triggerHelper = {
                         }
                     }
                 }
-                const items = await trigger.run({
+                const items = await pieceTrigger.run({
                     ...context,
                     files: createFilesService({
-                        workerToken: params.workerToken!,
+                        apiUrl: constants.internalApiUrl,
+                        engineToken: params.engineToken!,
                         flowId: params.flowVersion.flowId,
                         stepName: triggerName,
-                        type: 'memory',
                     }),
                 })
                 if (!Array.isArray(items)) {
@@ -197,4 +226,41 @@ export const triggerHelper = {
 type ExecuteTriggerParams = {
     params: ExecuteTriggerOperation<TriggerHookType>
     constants: EngineConstants
+}
+
+async function prepareTriggerExecution({ pieceName, pieceVersion, triggerName, input, projectId, apiUrl, engineToken, piecesSource }: PrepareTriggerExecutionParams) {
+    const { piece, pieceTrigger } = await pieceLoader.getPieceAndTriggerOrThrow({
+        pieceName,
+        pieceVersion,
+        triggerName,
+        piecesSource,
+    })
+
+    const { resolvedInput } = await createPropsResolver({
+        apiUrl,
+        projectId,
+        engineToken,
+    }).resolve<StaticPropsValue<PiecePropertyMap>>({
+        unresolvedInput: input,
+        executionState: FlowExecutorContext.empty(),
+    })
+
+    const { processedInput, errors } = await propsProcessor.applyProcessorsAndValidators(resolvedInput, pieceTrigger.props, piece.auth, pieceTrigger.requireAuth)
+
+    if (Object.keys(errors).length > 0) {
+        throw new Error(JSON.stringify(errors, null, 2))
+    }
+
+    return { piece, pieceTrigger, processedInput }
+}
+
+type PrepareTriggerExecutionParams = {
+    pieceName: string
+    pieceVersion: string
+    triggerName: string
+    input: unknown
+    projectId: string
+    apiUrl: string
+    engineToken: string
+    piecesSource: string
 }

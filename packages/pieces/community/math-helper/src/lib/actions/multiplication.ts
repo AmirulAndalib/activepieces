@@ -7,8 +7,16 @@ import {
 export const multiplication = createAction({
   name: 'multiplication_math',
   auth: PieceAuth.None(),
-  displayName: 'Multiplicattion',
+  displayName: 'Multiplication',
   description: 'Multiply first number by the second number',
+  errorHandlingOptions: {
+    continueOnFailure: {
+      hide: true,
+    },
+    retryOnFailure: {
+      hide: true,
+    },
+  },
   props: {
     first_number: Property.Number({
       displayName: 'First Number',

@@ -1,20 +1,17 @@
-import { ActionType, CodeAction, GenericStepOutput, StepOutputStatus } from '@activepieces/shared'
-import { ActionHandler, BaseExecutor } from './base-executor'
-import { ExecutionVerdict, FlowExecutorContext } from './context/flow-execution-context'
-import { EngineConstants } from './context/engine-constants'
-import { continueIfFailureHandler, runWithExponentialBackoff } from '../helper/error-handling'
+import path from 'path'
+import importFresh from '@activepieces/import-fresh-webpack'
+import { ActionType, CodeAction, FlowVersionState, GenericStepOutput, StepOutputStatus } from '@activepieces/shared'
 import { initCodeSandbox } from '../core/code/code-sandbox'
 import { CodeModule } from '../core/code/code-sandbox-common'
+import { continueIfFailureHandler, handleExecutionError, runWithExponentialBackoff } from '../helper/error-handling'
+import { ActionHandler, BaseExecutor } from './base-executor'
+import { ExecutionVerdict } from './context/flow-execution-context'
 
 export const codeExecutor: BaseExecutor<CodeAction> = {
     async handle({
         action,
         executionState,
         constants,
-    }: {
-        action: CodeAction
-        executionState: FlowExecutorContext
-        constants: EngineConstants
     }) {
         if (executionState.isCompleted({ stepName: action.name })) {
             return executionState
@@ -25,7 +22,7 @@ export const codeExecutor: BaseExecutor<CodeAction> = {
 }
 
 const executeAction: ActionHandler<CodeAction> = async ({ action, executionState, constants }) => {
-    const { censoredInput, resolvedInput } = await constants.variableService.resolve<Record<string, unknown>>({
+    const { censoredInput, resolvedInput } = await constants.propsResolver.resolve<Record<string, unknown>>({
         unresolvedInput: action.settings.input,
         executionState,
     })
@@ -37,8 +34,8 @@ const executeAction: ActionHandler<CodeAction> = async ({ action, executionState
     })
 
     try {
-        const artifactPath = `${constants.baseCodeDirectory}/${action.name}/index.js`
-        const codeModule: CodeModule = await import(artifactPath)
+        const artifactPath = path.resolve(`${constants.baseCodeDirectory}/${constants.flowVersionId}/${action.name}/index.js`)
+        const codeModule: CodeModule = constants.flowVersionState === FlowVersionState.DRAFT ? await importFresh(artifactPath) : await import(artifactPath)
         const codeSandbox = await initCodeSandbox()
 
         const output = await codeSandbox.runCodeModule({
@@ -49,9 +46,14 @@ const executeAction: ActionHandler<CodeAction> = async ({ action, executionState
         return executionState.upsertStep(action.name, stepOutput.setOutput(output)).increaseTask()
     }
     catch (e) {
-        console.error(e)
+        const handledError = handleExecutionError(e)
+
+        const failedStepOutput = stepOutput
+            .setStatus(StepOutputStatus.FAILED)
+            .setErrorMessage(handledError.message)
+
         return executionState
-            .upsertStep(action.name, stepOutput.setStatus(StepOutputStatus.FAILED).setErrorMessage((e as Error).message))
-            .setVerdict(ExecutionVerdict.FAILED, undefined)
+            .upsertStep(action.name, failedStepOutput)
+            .setVerdict(ExecutionVerdict.FAILED, handledError.verdictResponse)
     }
 }

@@ -1,6 +1,7 @@
-import { ActionType, ExecutionOutput, ExecutionOutputStatus, LoopStepOutput, PauseMetadata, StepOutput, StepOutputStatus, StopResponse, assertEqual, isNil } from '@activepieces/shared'
-import { StepExecutionPath } from './step-execution-path'
+import { ActionType, assertEqual, FlowError, FlowRunResponse, FlowRunStatus, GenericStepOutput, isNil, LoopStepOutput, LoopStepResult, PauseMetadata, spreadIfDefined, StepOutput, StepOutputStatus, StopResponse } from '@activepieces/shared'
+import { nanoid } from 'nanoid'
 import { loggingUtils } from '../../helper/logging-utils'
+import { StepExecutionPath } from './step-execution-path'
 
 export enum ExecutionVerdict {
     RUNNING = 'RUNNING',
@@ -9,38 +10,52 @@ export enum ExecutionVerdict {
     FAILED = 'FAILED',
 }
 
-type VerdictResponse = {
-    reason: ExecutionOutputStatus.PAUSED
+export type VerdictResponse = {
+    reason: FlowRunStatus.PAUSED
     pauseMetadata: PauseMetadata
 } | {
-    reason: ExecutionOutputStatus.STOPPED
+    reason: FlowRunStatus.STOPPED
     stopResponse: StopResponse
+} | {
+    reason: FlowRunStatus.INTERNAL_ERROR
 }
 
 export class FlowExecutorContext {
     tasks: number
     tags: readonly string[]
     steps: Readonly<Record<string, StepOutput>>
-    currentState: Record<string, unknown>
-    duration: number
+    pauseRequestId: string
     verdict: ExecutionVerdict
     verdictResponse: VerdictResponse | undefined
     currentPath: StepExecutionPath
+    error?: FlowError
+
+    /**
+     * Execution time in milliseconds
+     */
+    duration: number
 
     constructor(copyFrom?: FlowExecutorContext) {
         this.tasks = copyFrom?.tasks ?? 0
         this.tags = copyFrom?.tags ?? []
         this.steps = copyFrom?.steps ?? {}
+        this.pauseRequestId = copyFrom?.pauseRequestId ?? nanoid()
         this.duration = copyFrom?.duration ?? -1
-        this.currentState = copyFrom?.currentState ?? {}
         this.verdict = copyFrom?.verdict ?? ExecutionVerdict.RUNNING
         this.verdictResponse = copyFrom?.verdictResponse ?? undefined
+        this.error = copyFrom?.error ?? undefined
         this.currentPath = copyFrom?.currentPath ?? StepExecutionPath.empty()
     }
 
-
     static empty(): FlowExecutorContext {
         return new FlowExecutorContext()
+    }
+
+    public setPauseRequestId(pauseRequestId: string): FlowExecutorContext {
+        return new FlowExecutorContext({
+            ...this,
+            pauseRequestId,
+        })
     }
 
     public getLoopStepOutput({ stepName }: { stepName: string }): LoopStepOutput | undefined {
@@ -49,10 +64,11 @@ export class FlowExecutorContext {
         if (isNil(stepOutput)) {
             return undefined
         }
-        assertEqual(stepOutput.type, ActionType.LOOP_ON_ITEMS, 'stepout', 'LoopStepOutput')
-        return stepOutput as LoopStepOutput
+        assertEqual(stepOutput.type, ActionType.LOOP_ON_ITEMS, 'stepOutput.type', 'LOOP_ON_ITEMS')
+        // The new LoopStepOutput is needed as casting directly to LoopClassOutput will just cast the data but the class methods will not be available
+        return new LoopStepOutput(stepOutput as GenericStepOutput<ActionType.LOOP_ON_ITEMS, LoopStepResult>)
     }
-    
+
     public isCompleted({ stepName }: { stepName: string }): boolean {
         const stateAtPath = getStateAtPath({ currentPath: this.currentPath, steps: this.steps })
         const stepOutput = stateAtPath[stepName]
@@ -78,6 +94,7 @@ export class FlowExecutorContext {
         })
     }
 
+
     public addTags(tags: string[]): FlowExecutorContext {
         return new FlowExecutorContext({
             ...this,
@@ -101,13 +118,45 @@ export class FlowExecutorContext {
         const targetMap = getStateAtPath({ currentPath: this.currentPath, steps })
         targetMap[stepName] = stepOutput
 
+        const error = stepOutput.status === StepOutputStatus.FAILED ? {
+            stepName,
+            message: stepOutput.errorMessage,
+        } : this.error
+
         return new FlowExecutorContext({
             ...this,
             tasks: this.tasks,
-            currentState: {
-                ...this.currentState,
-                [stepName]: stepOutput.output,
-            },
+            ...spreadIfDefined('error', error),
+            steps,
+        })
+    }
+
+    public getStepOutput(stepName: string): StepOutput | undefined {
+        const stateAtPath = getStateAtPath({ currentPath: this.currentPath, steps: this.steps })
+        return stateAtPath[stepName]
+    }
+
+    public setStepDuration({ stepName, duration }: SetStepDurationParams): FlowExecutorContext {
+        const steps = {
+            ...this.steps,
+        }
+
+        const targetMap = getStateAtPath({
+            steps,
+            currentPath: this.currentPath,
+        })
+
+        const stepOutput = targetMap[stepName]
+
+        if (isNil(stepOutput)) {
+            console.error(`[FlowExecutorContext#setStepDuration] Step ${stepName} not found in current path`)
+            return this
+        }
+
+        targetMap[stepName].duration = duration
+
+        return new FlowExecutorContext({
+            ...this,
             steps,
         })
     }
@@ -119,7 +168,7 @@ export class FlowExecutorContext {
         })
     }
 
-    public setVerdict(verdict: ExecutionVerdict, response: VerdictResponse | undefined): FlowExecutorContext {
+    public setVerdict(verdict: ExecutionVerdict, response?: VerdictResponse): FlowExecutorContext {
         return new FlowExecutorContext({
             ...this,
             verdict,
@@ -127,51 +176,95 @@ export class FlowExecutorContext {
         })
     }
 
-    public async toExecutionOutput(): Promise<ExecutionOutput> {
+    public setRetryable(retryable: boolean): FlowExecutorContext {
+        return new FlowExecutorContext({
+            ...this,
+            retryable,
+        })
+    }
+
+    public async toResponse(): Promise<FlowRunResponse> {
         const baseExecutionOutput = {
             duration: this.duration,
             tasks: this.tasks,
             tags: [...this.tags],
-            executionState: {
-                steps: await loggingUtils.trimExecution(this.steps),
-            },
+            steps: await loggingUtils.trimExecution(this.steps),
         }
         switch (this.verdict) {
-            case ExecutionVerdict.FAILED:
+            case ExecutionVerdict.FAILED: {
+                const verdictResponse = this.verdictResponse
+                if (verdictResponse?.reason === FlowRunStatus.INTERNAL_ERROR) {
+                    return {
+                        ...baseExecutionOutput,
+                        error: this.error,
+                        status: FlowRunStatus.INTERNAL_ERROR,
+                    }
+                }
                 return {
                     ...baseExecutionOutput,
-                    status: ExecutionOutputStatus.FAILED,
+                    error: this.error,
+                    status: FlowRunStatus.FAILED,
                 }
+            }
             case ExecutionVerdict.PAUSED: {
                 const verdictResponse = this.verdictResponse
-                if (verdictResponse?.reason !== ExecutionOutputStatus.PAUSED) {
-                    throw new Error('Veridct Response should have pause metadata response')
+                if (verdictResponse?.reason !== FlowRunStatus.PAUSED) {
+                    throw new Error('Verdict Response should have pause metadata response')
                 }
                 return {
                     ...baseExecutionOutput,
-                    status: ExecutionOutputStatus.PAUSED,
+                    status: FlowRunStatus.PAUSED,
                     pauseMetadata: verdictResponse.pauseMetadata,
                 }
             }
-            case ExecutionVerdict.RUNNING:
+            case ExecutionVerdict.RUNNING: {
+                return {
+                    ...baseExecutionOutput,
+                    status: FlowRunStatus.RUNNING,
+                }
+            }
             case ExecutionVerdict.SUCCEEDED: {
                 const verdictResponse = this.verdictResponse
-                if (verdictResponse?.reason === ExecutionOutputStatus.STOPPED) {
+                if (verdictResponse?.reason === FlowRunStatus.STOPPED) {
                     return {
                         ...baseExecutionOutput,
-                        status: ExecutionOutputStatus.STOPPED,
+                        status: FlowRunStatus.STOPPED,
                         stopResponse: verdictResponse.stopResponse,
                     }
                 }
                 return {
                     ...baseExecutionOutput,
-                    status: ExecutionOutputStatus.SUCCEEDED,
+                    status: FlowRunStatus.SUCCEEDED,
                 }
             }
         }
     }
+    public currentState(): Record<string, unknown> {
+        let flattenedSteps: Record<string, unknown> = extractOutput(this.steps)
+        let targetMap = this.steps
+        this.currentPath.path.forEach(([stepName, iteration]) => {
+            const stepOutput = targetMap[stepName]
+            if (!stepOutput.output || stepOutput.type !== ActionType.LOOP_ON_ITEMS) {
+                throw new Error('[ExecutionState#getTargetMap] Not instance of Loop On Items step output')
+            }
+            targetMap = stepOutput.output.iterations[iteration]
+            flattenedSteps = {
+                ...flattenedSteps,
+                ...extractOutput(targetMap),
+            }
+        })
+        return flattenedSteps
+    }
+
+
 }
 
+function extractOutput(steps: Record<string, StepOutput>): Record<string, unknown> {
+    return Object.entries(steps).reduce((acc: Record<string, unknown>, [stepName, step]) => {
+        acc[stepName] = step.output
+        return acc
+    }, {} as Record<string, unknown>)
+}
 
 function getStateAtPath({ currentPath, steps }: { currentPath: StepExecutionPath, steps: Record<string, StepOutput> }): Record<string, StepOutput> {
     let targetMap = steps
@@ -183,4 +276,9 @@ function getStateAtPath({ currentPath, steps }: { currentPath: StepExecutionPath
         targetMap = stepOutput.output.iterations[iteration]
     })
     return targetMap
+}
+
+type SetStepDurationParams = {
+    stepName: string
+    duration: number
 }

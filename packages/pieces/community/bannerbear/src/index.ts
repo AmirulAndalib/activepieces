@@ -11,17 +11,19 @@ export const bannerbearAuth = PieceAuth.SecretText({
 
 export const bannerbear = createPiece({
   displayName: 'Bannerbear',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Automate image generation',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/bannerbear.png',
   categories: [PieceCategory.MARKETING],
-  authors: ['kanarelo'],
+  authors: ["kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   auth: bannerbearAuth,
   actions: [
     bannerbearCreateImageAction,
     createCustomApiCallAction({
       baseUrl: () => 'https://sync.api.bannerbear.com/v2',
       auth: bannerbearAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${auth}`,
       }),
     }),

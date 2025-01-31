@@ -20,17 +20,19 @@ export const heartbeatAuth = PieceAuth.SecretText({
 
 export const Heartbeat = createPiece({
   displayName: 'Heartbeat',
+  description: 'Monitoring and alerting made easy',
+
   auth: heartbeatAuth,
-  minimumSupportedRelease: '0.9.0',
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/heartbeat.png',
   categories: [PieceCategory.COMMUNICATION],
-  authors: ['kanarelo'],
+  authors: ["kanarelo","kishanprmr","abuaboud"],
   actions: [
     heartBeatCreateUser,
     createCustomApiCallAction({
       auth: heartbeatAuth,
       baseUrl: () => 'https://api.heartbeat.chat/v0',
-      authMapping: (auth) => {
+      authMapping: async (auth) => {
         return {
           Authorization: `Bearer ${auth}`,
         };

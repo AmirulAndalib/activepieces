@@ -1,6 +1,11 @@
-import { TriggerStrategy, createTrigger } from '@activepieces/pieces-framework';
-import { slackChannel } from '../common/props';
+import {
+  Property,
+  TriggerStrategy,
+  createTrigger,
+} from '@activepieces/pieces-framework';
+import { singleSelectChannelInfo, slackChannel } from '../common/props';
 import { slackAuth } from '../../';
+import { WebClient } from '@slack/web-api';
 
 const sampleData = {
   client_msg_id: '2767cf34-0651-44e0-b9c8-1b167ce9b7a9',
@@ -37,25 +42,63 @@ export const newMessage = createTrigger({
   displayName: 'New Message',
   description: 'Triggers when a new message is received',
   props: {
-    channel: slackChannel,
+    info: singleSelectChannelInfo,
+    channel: slackChannel(false),
+    ignoreBots: Property.Checkbox({
+      displayName: 'Ignore Bot Messages ?',
+      required: true,
+      defaultValue: false,
+    }),
   },
   type: TriggerStrategy.APP_WEBHOOK,
   sampleData: sampleData,
   onEnable: async (context) => {
-    await context.app.createListeners({
+    // Older OAuth2 has team_id, newer has team.id
+    const teamId =
+      context.auth.data['team_id'] ?? context.auth.data['team']['id'];
+    context.app.createListeners({
       events: ['message'],
-      identifierValue: context.auth.data['team_id'],
+      identifierValue: teamId,
     });
   },
   onDisable: async (context) => {
     // Ignored
   },
+
   test: async (context) => {
-    return [sampleData];
+    if (!context.propsValue.channel) {
+      return [sampleData];
+    }
+    const client = new WebClient(context.auth.access_token);
+    const response = await client.conversations.history({
+      channel: context.propsValue.channel,
+      limit: 10,
+    });
+    if (!response.messages) {
+      return [];
+    }
+    return response.messages
+      .filter((message) => !(context.propsValue.ignoreBots && message.bot_id))
+      .map((message) => {
+        return {
+          ...message,
+          channel: context.propsValue.channel,
+          event_ts: '1678231735.586539',
+          channel_type: 'channel',
+        };
+      });
   },
+
   run: async (context) => {
     const payloadBody = context.payload.body as PayloadBody;
-    if (payloadBody.event.channel === context.propsValue.channel) {
+    if (
+      !context.propsValue.channel ||
+      payloadBody.event.channel === context.propsValue.channel
+    ) {
+      // check for bot messages
+      if (context.propsValue.ignoreBots && payloadBody.event.bot_id) {
+        return [];
+      }
       return [payloadBody.event];
     }
 
@@ -66,5 +109,6 @@ export const newMessage = createTrigger({
 type PayloadBody = {
   event: {
     channel: string;
+    bot_id?: string;
   };
 };

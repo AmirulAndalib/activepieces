@@ -10,17 +10,19 @@ export const resendAuth = PieceAuth.SecretText({
 
 export const resend = createPiece({
   displayName: 'Resend',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Email for developers',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/resend.png',
   categories: [PieceCategory.BUSINESS_INTELLIGENCE, PieceCategory.MARKETING],
-  authors: [],
+  authors: ["kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   auth: resendAuth,
   actions: [
     sendEmail,
     createCustomApiCallAction({
       baseUrl: () => 'https://api.resend.com',
       auth: resendAuth,
-      authMapping: (auth) => ({
+      authMapping: async (auth) => ({
         Authorization: `Bearer ${auth}`,
       }),
     }),

@@ -46,9 +46,11 @@ export const mauticAuth = PieceAuth.CustomAuth({
 
 export const mautic = createPiece({
   displayName: 'Mautic',
-  minimumSupportedRelease: '0.5.0',
+  description: 'Open-source marketing automation software',
+
+  minimumSupportedRelease: '0.30.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/mautic.png',
-  authors: ['bibhuty-did-this', 'kanarelo'],
+  authors: ["bibhuty-did-this","kanarelo","kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
   categories: [PieceCategory.MARKETING],
   auth: mauticAuth,
   actions: [
@@ -64,7 +66,7 @@ export const mautic = createPiece({
         const { base_url } = auth as PiecePropValueSchema<typeof mauticAuth>;
         return `${base_url.endsWith('/') ? base_url : base_url + '/'}api/`;
       },
-      authMapping: (auth) => {
+      authMapping: async (auth) => {
         const { username, password } = auth as PiecePropValueSchema<
           typeof mauticAuth
         >;
